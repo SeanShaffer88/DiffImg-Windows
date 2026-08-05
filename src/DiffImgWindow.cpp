@@ -1233,7 +1233,25 @@ void DiffImgWindow::setPreferences()
 
 void DiffImgWindow::on_actionRefresh_triggered()
 {
+    struct ViewState {
+        qreal scale;
+        QPointF center;
+    };
+
+    const ViewState view1State{graphicsView1->getScale(), graphicsView1->getCenter()};
+    const ViewState view2State{graphicsView2->getScale(), graphicsView2->getCenter()};
+    const ViewState wipeState{graphicsViewWipe->getScale(), graphicsViewWipe->getCenter()};
+
     acceptFiles();
+
+    const auto restoreView = [](ImageView *view, const ViewState &state) {
+        view->setScale(state.scale);
+        view->setCenter(state.center);
+    };
+
+    restoreView(graphicsView1, view1State);
+    restoreView(graphicsView2, view2State);
+    restoreView(graphicsViewWipe, wipeState);
 }
 
 void DiffImgWindow::displayMousePosition(const QPointF &p)
@@ -1501,7 +1519,6 @@ void DiffImgWindow::keyPressEvent(QKeyEvent *event)
         }
     }
 }
-
 
 
 
