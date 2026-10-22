@@ -65,9 +65,9 @@ def main():
     app_build=build/'app'; app_build.mkdir(exist_ok=True)
     env=environment(args.msvc_root.resolve(),args.sdk_root.resolve(),args.sdk_version,qt,args.tools_dir.resolve(),build/'lib')
     version=subprocess.check_output([str(qt/'bin/qmake.exe'),'-query','QT_VERSION'],env=env,text=True).strip()
-    if version!='5.15.2': raise RuntimeError('This baseline requires Qt 5.15.2, MSVC x64 shared binaries.')
+    if version!='6.12.0': raise RuntimeError('This baseline requires Qt 6.12.0, MSVC x64 shared binaries.')
     with (build/'qwt-build.log').open('w',encoding='utf-8') as log:
-        run([qt/'bin/qmake.exe',qwt_copy/'src/src.pro','-after','CONFIG-=debug_and_release','CONFIG-=build_all','CONFIG+=release','QMAKE_CXXFLAGS+=/Brepro','QMAKE_LFLAGS+=/Brepro'],qwt_build,env,log)
+        run([qt/'bin/qmake.exe',qwt_copy/'src/src.pro','-after','CONFIG-=debug_and_release','CONFIG-=build_all','CONFIG+=release','QMAKE_CXXFLAGS+=/Brepro /MP8','QMAKE_LFLAGS+=/Brepro'],qwt_build,env,log)
         run(['nmake.exe','/nologo'],qwt_build,env,log)
     with (build/'app-build.log').open('w',encoding='utf-8') as log:
         run(['cmake.exe','-S',ROOT,'-B',app_build,'-G','Ninja','-DCMAKE_BUILD_TYPE=Release',
@@ -75,6 +75,7 @@ def main():
         run(['cmake.exe','--build',app_build,'--parallel','8'],build,env,log)
     run(['ctest.exe','--test-dir',app_build,'--output-on-failure'],build,env)
     run([sys.executable,ROOT/'tests/cli_tests.py',app_build/'diffimg-cli.exe','--output',build/'cli-results.json'],build,env)
+    run([sys.executable,ROOT/'tests/robustness_tests.py',app_build/'diffimg-cli.exe','--output',build/'robustness-results.json'],build,env)
     run([app_build/'comparison-tests.exe','-platform','windows','guiComparisonSmoke','-o',build/'native-gui-results.xml,xml'],app_build,env)
     manifests={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (app_build/'diffimg.exe',app_build/'diffimg-cli.exe',build/'lib/qwt.dll')}
     (build/'binary-hashes.json').write_text(json.dumps(manifests,indent=2)+'\n')

@@ -1,0 +1,80 @@
+name: Windows Qt 6 release validation
+on:
+  push:
+    branches: [master, revival/qt6-stable]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Provision pinned dependencies
+        shell: pwsh
+        run: |
+          python -m pip install aqtinstall==3.3.0 cmake==3.31.6 ninja==1.11.1.4
+          python tools/fetch_qt.py --output .deps/Qt
+          git clone https://git.code.sf.net/p/qwt/git .deps/qwt
+          git -C .deps/qwt checkout 4ddf2f3878d0835f678da0f2aba1180f2ba208f6
+      - name: Build and test
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $vc = (Get-ChildItem "$vs/VC/Tools/MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          $sdk = (Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/Include" -Directory | Sort-Object Name -Descending | Select-Object -First 1).Name
+          $tools = Split-Path (Get-Command cmake.exe).Source
+          python tools/build_windows.py --qt-root .deps/Qt/6.12.0/msvc2022_64 --qwt-source .deps/qwt --msvc-root "$vc" --sdk-version "$sdk" --tools-dir "$tools" --build-root build-release
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $crt = (Get-ChildItem "$vs/VC/Redist/MSVC" -Directory | Where-Object Name -Match '^14\.' | Sort-Object Name -Descending | Select-Object -First 1).FullName + '/x64/Microsoft.VC143.CRT'
+          python tools/package_windows.py --build-root build-release --qt-root .deps/Qt/6.12.0/msvc2022_64 --crt-root "$crt" --qt-source .deps/Qt/qtbase-everywhere-src-6.12.0.tar.xz --output staging
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory qa | Out-Null
+          Copy-Item build-release/app/comparison-tests.exe qa/
+          Copy-Item .deps/Qt/6.12.0/msvc2022_64/bin/Qt6Test.dll qa/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-and-qa
+          path: |
+            staging/
+            qa/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-evidence
+          path: |
+            build-release/*.log
+            build-release/*results*
+            build-release/binary-hashes.json
+            build-release/app/comparison-results.xml
+  deployment:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-and-qa
+          path: artifact
+      - name: Verify app-local deployment without installing Qt
+        shell: pwsh
+        run: |
+          python tools/test_portable.py --package artifact/staging/DiffImg-2.4.0-win-x64 --test-exe artifact/qa/comparison-tests.exe --qt-test-dll artifact/qa/Qt6Test.dll --results portable-results.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-evidence-${{ matrix.os }}
+          path: portable-results.json

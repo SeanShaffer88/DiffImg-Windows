@@ -12,6 +12,11 @@
 #include "MetricsRegistering.h"
 #include <QGraphicsView>
 #include <QDockWidget>
+#include <QImageReader>
+#include <QRegularExpression>
+#include "qtvariantproperty.h"
+#include "qtpropertymanager.h"
+#include <random>
 #include "AppSettings.h"
 
 class ComparisonTests : public QObject {
@@ -177,6 +182,57 @@ private slots:
         QVERIFY(!metric.isValid());
         QVERIFY(metric.getImageDifference().isNull());
     }
+    void propertyEditorQt6Types() {
+        QtVariantPropertyManager manager;
+        auto number=manager.addProperty(QMetaType::Int, "integer");
+        QVERIFY(number);
+        number->setValue(7);
+        number->setAttribute("minimum", 3);
+        QCOMPARE(number->value().toInt(),7);
+        QCOMPARE(number->attributeValue("minimum").toInt(),3);
+        auto real=manager.addProperty(QMetaType::Double, "real");
+        QVERIFY(real); real->setValue(1.25); QCOMPARE(real->value().toDouble(),1.25);
+        QtStringPropertyManager strings;
+        auto text=strings.addProperty("text");
+        strings.setRegExp(text,QRegularExpression("[A-Z]+"));
+        strings.setValue(text,"ABC"); QCOMPARE(strings.value(text),QString("ABC"));
+        strings.setValue(text,"ABC!"); QCOMPARE(strings.value(text),QString("ABC"));
+    }
+    void packagedCodecRoundTrips() {
+        const QImage input=solid(qRgb(60,90,120),QSize(17,13));
+        for(const auto &format : {"png","bmp","jpg","ico"}) {
+            const auto path=files.filePath(QString("codec.%1").arg(format));
+            QVERIFY2(input.save(path,format),format);
+            QImageReader reader(path); const auto decoded=reader.read();
+            QVERIFY2(!decoded.isNull(),format); QCOMPARE(decoded.size(),input.size());
+            PerChannelMetric metric; metric.checkDifferences(path,path);
+            QVERIFY(metric.isValid()); QCOMPARE(metric.getPixelError(),0);
+        }
+        // GIF writer is absent in Qt; use an independently encoded 1x1 GIF fixture.
+        QFile gif(files.filePath("single.gif")); QVERIFY(gif.open(QIODevice::WriteOnly));
+        gif.write(QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")); gif.close();
+        PerChannelMetric metric; metric.checkDifferences(gif.fileName(),gif.fileName());
+        QVERIFY(metric.isValid()); QCOMPARE(metric.getPixelError(),0);
+    }
+    void randomizedPixelOracle() {
+        std::mt19937 random(0xD1FF2026);
+        for(int iteration=0;iteration<40;++iteration) {
+            const int width=1+random()%31, height=1+random()%19;
+            QImage left(width,height,QImage::Format_ARGB32),right=left;
+            int count=0, maximum=0; double sum=0;
+            for(int y=0;y<height;++y) for(int x=0;x<width;++x) {
+                int a[3],b[3]; bool differs=false;
+                for(int c=0;c<3;++c) {a[c]=random()%256;b[c]=random()%256;
+                    int delta=std::abs(a[c]-b[c]);sum+=delta;maximum=qMax(maximum,delta);differs|=delta!=0;}
+                count+=differs;left.setPixel(x,y,qRgb(a[0],a[1],a[2]));right.setPixel(x,y,qRgb(b[0],b[1],b[2]));
+            }
+            PerChannelMetric metric;
+            metric.checkDifferences(write("random-a.png",left),write("random-b.png",right));
+            QVERIFY(metric.isValid());QCOMPARE(metric.getPixelError(),count);
+            QCOMPARE(metric.getOutputParam("MaxError")->value.toInt(),maximum);
+            QVERIFY(std::abs(metric.getOutputParam("MeanError")->value.toDouble()-sum/(width*height*3))<1e-4);
+        }
+    }
     void guiComparisonSmoke() {
         AppSettings settings;
         settings.clear();
@@ -195,7 +251,9 @@ private slots:
         auto statistics=window.findChild<QDockWidget *>("dockWidgetProperties");
         QVERIFY(statistics);
         QVERIFY(!statistics->isFloating());
-        QVERIFY(statistics->width()>=260);
+        QVERIFY(statistics->width()>=350);
+        auto navigator=window.findChild<QDockWidget *>("dockWidgetNavigator");
+        QVERIFY(navigator); QVERIFY(navigator->height()>=300);
         QVERIFY(!window.findChildren<QGraphicsView *>().isEmpty());
         QVERIFY(window.windowTitle().contains("gui-left"));
         QVERIFY(window.grab().save("gui-smoke.png"));

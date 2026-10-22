@@ -46,7 +46,7 @@
 #include <QFileDialog>
 #include <QAction>
 #include <QMessageBox>
-#include <QDesktopWidget>
+
 #include <QDesktopServices>
 #include <QPainter>
 #include <QDragEnterEvent>
@@ -115,7 +115,8 @@ DiffImgWindow::DiffImgWindow(QWidget *parent)
 {
     setupUi(this);
     dockWidgetNavigator->setMinimumWidth(260);
-    dockWidgetProperties->setMinimumWidth(260);
+    dockWidgetProperties->setMinimumWidth(350);
+    dockWidgetNavigator->setMinimumHeight(300);
     updateUi();
     loadSettings();
 }

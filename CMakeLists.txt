@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(diffimg VERSION 2.3.0 LANGUAGES CXX)
+project(diffimg VERSION 2.4.0 LANGUAGES CXX)
 include(CTest)
+option(DIFFIMG_ASAN "Instrument application and bundled comparison code with MSVC AddressSanitizer" OFF)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -11,11 +12,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTORCC_OPTIONS --format-version 1)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(Qwt REQUIRED)
 add_library(diffimg_core STATIC
     # Main sources
@@ -104,10 +105,14 @@ target_include_directories(diffimg_core PUBLIC
     3rdparty/perceptualdiff
     3rdparty/qtpropertybrowser
     )
-target_link_libraries(diffimg_core PUBLIC Qwt::Qwt Qt5::Widgets)
+target_link_libraries(diffimg_core PUBLIC Qwt::Qwt Qt6::Widgets)
 target_compile_definitions(diffimg_core PUBLIC QWT_DLL NOMINMAX _CRT_SECURE_NO_WARNINGS)
 if(MSVC)
     target_compile_options(diffimg_core PUBLIC /utf-8 /Brepro)
+    if(DIFFIMG_ASAN)
+        target_compile_options(diffimg_core PUBLIC /fsanitize=address /Zi)
+        target_link_options(diffimg_core PUBLIC /INCREMENTAL:NO /DEBUG)
+    endif()
 endif()
 add_executable(diffimg WIN32 src/main.cpp)
 target_link_libraries(diffimg PRIVATE diffimg_core)
@@ -120,8 +125,8 @@ if(MSVC)
 endif()
 install(TARGETS diffimg diffimg-cli RUNTIME DESTINATION .)
 if(BUILD_TESTING)
-    find_package(Qt5 COMPONENTS Test REQUIRED)
+    find_package(Qt6 COMPONENTS Test REQUIRED)
     add_executable(comparison-tests tests/comparison_tests.cpp)
-    target_link_libraries(comparison-tests PRIVATE diffimg_core Qt5::Test)
+    target_link_libraries(comparison-tests PRIVATE diffimg_core Qt6::Test)
     add_test(NAME comparisons COMMAND comparison-tests -platform windows -o comparison-results.xml,xml)
 endif()

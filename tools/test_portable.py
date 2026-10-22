@@ -62,7 +62,7 @@ def main():
         result['manifest_verified_files']=len(manifest)
         # The test harness is supplemental QA material, not a runtime requirement.
         shutil.copy2(args.test_exe,folder/'comparison-tests.exe')
-        shutil.copy2(args.qt_test_dll,folder/'Qt5Test.dll')
+        shutil.copy2(args.qt_test_dll,folder/'Qt6Test.dll')
         subprocess.run([str(folder/'comparison-tests.exe'),'-platform','windows','-o','portable-tests.xml,xml'],cwd=folder,env=env,check=True,timeout=30)
         xml=ET.parse(folder/'portable-tests.xml')
         assert not xml.findall('.//Incident[@type="fail"]')
@@ -82,7 +82,7 @@ def main():
             time.sleep(1)
             assert process.poll() is None,'GUI exited unexpectedly'
             loaded=modules(process.pid)
-            runtime=[p for p in loaded if p.name.lower().startswith(('qt5','qwt','msvcp140','vcruntime140')) or p.name.lower()=='qwindows.dll']
+            runtime=[p for p in loaded if p.name.lower().startswith(('qt6','qwt','msvcp140','vcruntime140')) or p.name.lower()=='qwindows.dll']
             assert any(p.name.lower()=='qwindows.dll' for p in runtime),'Windows platform plugin not loaded'
             assert any(p.name.lower()=='qwt.dll' for p in runtime),'Qwt not loaded'
             for module in runtime:

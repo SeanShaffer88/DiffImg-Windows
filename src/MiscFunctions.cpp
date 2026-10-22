@@ -1,3 +1,4 @@
+#include <QRegularExpression>
 
 /******************************************************************************
    DiffImg: image difference viewer
@@ -197,17 +198,18 @@ QMap<QString, QString> MiscFunctions::getAvailableLanguages()
 {
     QMap<QString, QString> languageMap;
     QDir dir(MiscFunctions::getTranslationsPath("fr"));
-    QRegExp expr(QString("^%1_(\\w+)\\.qm$").arg(PACKAGE_NAME).toLower());
+    QRegularExpression expr(QString("^%1_(\\w+)\\.qm$").arg(PACKAGE_NAME).toLower());
     QStringList files = dir.entryList(QDir::Files, QDir::Name);
 
     LogHandler::getInstance()->reportDebug(QString("translations path %1").arg(dir.path()));
 
     foreach (const QString &file, files) {
-        if (!file.contains(expr)) {
+        const auto match = expr.match(file);
+        if (!match.hasMatch()) {
             continue;
         }
 
-        QString lang = expr.cap(1);
+        QString lang = match.captured(1);
         QString name = QString("%1 (%2)").arg(QLocale::languageToString(QLocale(lang).language()), lang);
 
         if (lang.contains("_")) { // detect variant

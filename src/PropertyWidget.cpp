@@ -32,6 +32,8 @@ PropertyWidget::PropertyWidget(QWidget *parent) :
     QtTreePropertyBrowser(parent)
 {
     m_variantManager = new QtVariantPropertyManager(this);
+    setResizeMode(QtTreePropertyBrowser::Interactive);
+    setSplitterPosition(205);
 }
 
 void PropertyWidget::displayData(BaseMetric *met)

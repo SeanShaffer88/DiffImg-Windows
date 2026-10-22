@@ -21,7 +21,7 @@
 #include <QApplication>
 //#include <QPlastiqueStyle>
 #include <QMessageBox>
-#include <QDesktopWidget>
+
 #include <QtCore/QFileInfo>
 #include <QTextStream>
 #include <QDebug>

@@ -1,3 +1,4 @@
+#include <QRegularExpression>
 
 /******************************************************************************
    DiffImg: image difference viewer
@@ -122,7 +123,7 @@ QString FilesManager::getValidFile(const QString &basename, const QString &refPa
     }
 
     // try to find a file with another suffix
-    QRegExp rx(QString("^%1.*").arg(QFileInfo(basename).completeBaseName()));
+    QRegularExpression rx(QString("^%1.*").arg(QRegularExpression::escape(QFileInfo(basename).completeBaseName())));
     int index = refList.indexOf(rx);
 
     if (index >= 0) {

@@ -1,15 +1,16 @@
 {
   "qt": {
-    "version": "5.15.2",
-    "architecture": "win64_msvc2019_64",
-    "repository": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt5_5152/",
+    "version": "6.12.0",
+    "architecture": "win64_msvc2022_64",
+    "repository": "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6120/qt6_6120_msvc2022_64/",
+    "package": "qt.qt6.6120.win64_msvc2022_64",
+    "package_version": "6.12.0-0-202609280346",
     "archives": {
-      "qtbase-Windows-Windows_10-MSVC2019-Windows-Windows_10-X86_64.7z": "e563de40230295841c2eece26e347de709edc4bf035515cc239cae3c994c9af6",
-      "qtimageformats-Windows-Windows_10-MSVC2019-Windows-Windows_10-X86_64.7z": "3cc93e55c0e8509290db49de36d879dee1e84cb74ddf177fb611f25562cd5f2c",
-      "qttools-Windows-Windows_10-MSVC2019-Windows-Windows_10-X86_64.7z": "babb583bbbac0e946ad25a2a687b4a3349779d750b1f3de1c4dadbf1c343c3ea"
+      "qtbase-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z": "219d1b86def3be418e31d704572bc4acc91b2ec373c65595c9fb12b42bf098dc",
+      "qttools-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z": "73328e361429378df518f391ebe4d82c51e833f4d5a951692768ab5a5a1d7da5"
     },
-    "source_url": "https://download.qt.io/archive/qt/5.15/5.15.2/submodules/qtbase-everywhere-src-5.15.2.tar.xz",
-    "source_sha256": "909fad2591ee367993a75d7e2ea50ad4db332f05e1c38dd7a5a274e156a4e0f8"
+    "source_url": "https://download.qt.io/archive/qt/6.12/6.12.0/submodules/qtbase-everywhere-src-6.12.0.tar.xz",
+    "source_sha256": "a951bd163c7b80fc6b8c88d7668fb56abf91c152373e13c10666763238131307"
   },
   "qwt": {
     "version": "6.3.0",
