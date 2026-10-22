@@ -16,6 +16,7 @@
  */
 
 #include "LPyramid.h"
+#include <algorithm>
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -45,7 +46,7 @@ LPyramid::~LPyramid()
 {
     for (int i = 0; i<MAX_PYR_LEVELS; i++)
         if (Levels[i])
-            delete Levels[i];
+            delete[] Levels[i];
 }
 
 float *LPyramid::Copy(float *img)
@@ -83,6 +84,8 @@ void LPyramid::Convolve(float *a, float *b)
                         nx = 2 * Width - nx - 1;
                     if (ny>=Height)
                         ny = 2 * Height - ny - 1;
+                    nx = std::clamp(nx, 0, Width - 1);
+                    ny = std::clamp(ny, 0, Height - 1);
                     a[index] += Kernel[i + 2] * Kernel[j + 2] * b[ny * Width + nx];
                 }
         }
@@ -91,8 +94,6 @@ void LPyramid::Convolve(float *a, float *b)
 float LPyramid::Get_Value(int x, int y, int level)
 {
     int index = x + y * Width;
-    int l = level;
-    if (l > MAX_PYR_LEVELS)
-        l = MAX_PYR_LEVELS;
-    return Levels[level][index];
+    const int l = std::clamp(level, 0, MAX_PYR_LEVELS - 1);
+    return Levels[l][index];
 }

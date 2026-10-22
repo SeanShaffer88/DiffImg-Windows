@@ -17,6 +17,7 @@
 #include "qtvariantproperty.h"
 #include "qtpropertymanager.h"
 #include <random>
+#include "LPyramid.h"
 #include "AppSettings.h"
 
 class ComparisonTests : public QObject {
@@ -181,6 +182,28 @@ private slots:
         metric.checkDifferences(file,file);
         QVERIFY(!metric.isValid());
         QVERIFY(metric.getImageDifference().isNull());
+    }
+    void perceptualTinyImagesAndPyramidBounds() {
+        float pixel=3.0f; LPyramid pyramid(&pixel,1,1);
+        QVERIFY(std::abs(pyramid.Get_Value(0,0,-1)-3.0f)<1e-4);
+        QVERIFY(std::abs(pyramid.Get_Value(0,0,MAX_PYR_LEVELS)-3.0f)<1e-4);
+        for(const QSize size : {QSize(1,1),QSize(1,7),QSize(7,1),QSize(2,2),QSize(3,5)}) {
+            PerceptualMetric metric;
+            const auto a=write("tiny-perceptual-a.png",solid(qRgb(0,0,0),size));
+            const auto b=write("tiny-perceptual-b.png",solid(qRgb(255,255,255),size));
+            metric.checkDifferences(a,b); QVERIFY(metric.isValid());QCOMPARE(metric.getPixelError(),size.width()*size.height());
+        }
+    }
+    void perceptualParameterBoundaries() {
+        const auto a=write("boundary-a.png",solid(qRgb(0,0,0),QSize(4,3)));
+        const auto b=write("boundary-b.png",solid(qRgb(255,255,255),QSize(4,3)));
+        for(float fov : {0.1f,89.9f}) {
+            PerceptualMetric metric; metric.getInputParams();
+            metric.getInputParam("FOV")->threshold=fov;
+            metric.checkDifferences(a,b);QVERIFY(metric.isValid());
+        }
+        PerceptualMetric metric;metric.getInputParams();metric.getInputParam("Downsample")->threshold=1;
+        metric.checkDifferences(a,b);QVERIFY(!metric.isValid());QVERIFY(metric.getImageDifference().isNull());
     }
     void propertyEditorQt6Types() {
         QtVariantPropertyManager manager;

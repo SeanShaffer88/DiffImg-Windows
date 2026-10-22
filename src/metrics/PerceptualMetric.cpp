@@ -87,7 +87,7 @@ void PerceptualMetric::createInputParams()
     addInputParam(new MetricParam("ColorFactor", tr("Color factor"), tr("How much of color to use, 0.0 to 1.0, 0.0 = ignore color."), defaultColorFactor));
 
     // FOV
-    addInputParam(new MetricParam("Downsample", tr("Downsample"), tr("How many powers of two to down sample the image"), defaultDownSample));
+    addInputParam(new MetricParam("Downsample", tr("Downsample"), tr("Reserved legacy setting; only 0 is supported"), defaultDownSample));
 }
 
 RGBAImage *qImageToRGBAImage(const QImage &input)
@@ -157,12 +157,12 @@ void PerceptualMetric::performDifference()
     args.ThresholdPixels = getOutputParam("ErrorNum")->threshold.toInt();
 
     if (!std::isfinite(args.Gamma) || args.Gamma <= 0 || args.Gamma > 10 ||
-        !std::isfinite(args.FieldOfView) || args.FieldOfView < 0.1 || args.FieldOfView > 89.9 ||
+        !std::isfinite(args.FieldOfView) || args.FieldOfView < 0.1f || args.FieldOfView > 89.9f ||
         !std::isfinite(args.Luminance) || args.Luminance <= 0 || args.Luminance > 10000 ||
         !std::isfinite(args.ColorFactor) || args.ColorFactor < 0 || args.ColorFactor > 1 ||
-        args.DownSample < 0 || args.DownSample > 8) {
+        args.DownSample != 0) {
         m_valid = false;
-        LogHandler::getInstance()->reportError("Invalid perceptual metric settings");
+        LogHandler::getInstance()->reportError("Invalid perceptual metric settings (Downsample must be 0)");
         return;
     }
 

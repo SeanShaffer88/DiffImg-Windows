@@ -48,6 +48,7 @@ def verify(executable, output=None):
         for value in ('Unknown=1','ErrorNum=-1','ErrorNum=0.5','ErrorNum=NaN','ErrorNum=inf','ErrorNum=2147483648'):
             case('invalid threshold '+value,base+['--threshold',value,a,b],2)
         case('invalid gamma',base+['--metric','PerceptualMetric','--in','Gamma=0',a,b],2)
+        case('unsupported downsample',base+['--metric','PerceptualMetric','--in','Downsample=1',a,b],2)
         case('unknown option',base+['--unknown',a,b],2)
         case('new diff output',base+['--output',root/'diff.png',a,b],1)
         assert (root/'diff.png').is_file()
