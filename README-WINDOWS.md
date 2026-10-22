@@ -15,7 +15,7 @@ Settings are written to `DiffImg.ini` beside the executable. This folder must be
 - Per-channel differences use absolute RGB channel differences. Statistics use all RGB channel samples. A pixel differs when any channel is nonzero.
 - Channel-mean mode uses the absolute difference of RGB sums divided by 3 (integer truncation). Equal RGB means can compare equal even if colors differ; use per-channel mode for strict screenshot checks.
 - Luminance mode uses integer-rounded `0.30R + 0.59G + 0.11B`, matching the displayed description rather than the legacy HSL-lightness implementation.
-- Perceptual mode is the bundled legacy perceptual-diff algorithm after the same alpha normalization. It is not a modern perceptual-accuracy guarantee. Its parameters require separate calibration for your images.
+- Perceptual mode is the bundled legacy perceptual-diff algorithm after the same alpha normalization. It is not a modern perceptual-accuracy guarantee. Its parameters require separate calibration for your images. The legacy Downsample setting was ignored by the application; only 0 is now accepted, and nonzero values return an error.
 - Headers are checked before decoding and each image is limited to 16,777,216 pixels. This does not make the image codecs a sandbox. PNG, BMP, JPEG, GIF and ICO are the packaged formats; animated GIF frame comparison, TIFF/WebP/JP2 and HDR/color-profile equivalence are outside the tested scope.
 - Inputs are read-only during comparison. Batch output must be a new file; an existing destination is refused, including an input path. The GUI's normal save dialog remains an explicit user action.
 
@@ -51,6 +51,6 @@ Build logs and test results are kept under the build folder. Dependencies and to
 
 ## Scope and maintenance
 
-This milestone fixes observed pixel access, mask, metric, batch validation and Windows packaging problems. It does not claim comprehensive fuzzing, codec security certification, cross-platform support, x86/ARM64 support or exhaustive parser security. The Qt runtime is updated to 6.12.0; continue updating it as security fixes become available. No automatic update or network service is added.
+This release fixes observed pixel access, mask, metric, batch validation and Windows packaging problems. It does not claim comprehensive fuzzing, codec security certification, cross-platform support, x86/ARM64 support or exhaustive parser security. The Qt runtime is updated to 6.12.0; continue updating it as security fixes become available. No automatic update or network service is added.
 
 Licensing and source access are described in THIRD-PARTY.md. Upstream references: https://sourceforge.net/projects/diffimg/ and https://github.com/arbruijn/diffimg .

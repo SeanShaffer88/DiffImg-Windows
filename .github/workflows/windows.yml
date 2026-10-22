@@ -3,6 +3,15 @@ on:
   push:
     branches: [master, revival/qt6-stable]
   workflow_dispatch:
+    inputs:
+      candidate_url:
+        description: Public portable ZIP URL for exact-release deployment validation
+        type: string
+        default: ''
+      candidate_sha256:
+        description: Expected SHA256 of candidate ZIP
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -81,3 +90,39 @@ jobs:
         with:
           name: deployment-evidence-${{ matrix.os }}
           path: portable-results.json
+  candidate-deployment:
+    if: github.event_name == 'workflow_dispatch' && inputs.candidate_url != ''
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-and-qa
+          path: artifact
+      - name: Verify exact candidate asset
+        shell: pwsh
+        env:
+          CANDIDATE_URL: ${{ inputs.candidate_url }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+        run: |
+          if ($env:CANDIDATE_URL -notmatch '^https://github.com/SeanShaffer88/DiffImg-Windows/releases/download/') { throw 'Unexpected candidate origin' }
+          if ($env:CANDIDATE_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'Invalid SHA256' }
+          Invoke-WebRequest -Uri $env:CANDIDATE_URL -OutFile candidate.zip
+          if ((Get-FileHash candidate.zip -Algorithm SHA256).Hash -ne $env:CANDIDATE_SHA256) { throw 'Candidate digest mismatch' }
+          Expand-Archive -LiteralPath candidate.zip -DestinationPath candidate
+          python tools/test_portable.py --package candidate/DiffImg-2.4.0-win-x64 --test-exe artifact/qa/comparison-tests.exe --qt-test-dll artifact/qa/Qt6Test.dll --results exact-candidate-results.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exact-candidate-evidence-${{ matrix.os }}
+          path: exact-candidate-results.json
