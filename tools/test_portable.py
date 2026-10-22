@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import struct
+import platform
 import sys
 import tempfile
 import time
@@ -53,13 +55,20 @@ def main():
         if key.upper().startswith(('QT_','QML')) or key.upper()=='PATH': env.pop(key)
     env['PATH']=str(Path(os.environ['SystemRoot'])/'System32')
     original_path=os.environ.get('PATH','')
-    result={'architecture':'AMD64','relocated_unicode_path':True,'sdk_removed_from_path':True}
+    result={'windows_version':platform.platform(),'architecture':'AMD64','relocated_unicode_path':True,'sdk_removed_from_path':True}
     with tempfile.TemporaryDirectory(prefix='DiffImg Portable ') as temporary:
         folder=Path(temporary)/'App With Spaces'
         shutil.copytree(args.package,folder)
         manifest=json.loads((folder/'SHA256.json').read_text())
         assert all(hashlib.sha256((folder/p).read_bytes()).hexdigest()==digest for p,digest in manifest.items())
         result['manifest_verified_files']=len(manifest)
+        binaries=[p for p in folder.rglob('*') if p.suffix.lower() in {'.dll','.exe'}]
+        for binary in binaries:
+            data=binary.read_bytes(); assert data[:2]==b'MZ',binary.name
+            pe=struct.unpack_from('<I',data,0x3c)[0]
+            assert data[pe:pe+4]==b'PE\0\0',binary.name
+            assert struct.unpack_from('<H',data,pe+4)[0]==0x8664,('Not AMD64',binary.name)
+        result['amd64_pe_files_verified']=len(binaries)
         # The test harness is supplemental QA material, not a runtime requirement.
         shutil.copy2(args.test_exe,folder/'comparison-tests.exe')
         shutil.copy2(args.qt_test_dll,folder/'Qt6Test.dll')

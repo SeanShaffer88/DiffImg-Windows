@@ -11,6 +11,7 @@
 #include "DiffImgWindow.h"
 #include "MetricsRegistering.h"
 #include <QGraphicsView>
+#include <QAction>
 #include <QDockWidget>
 #include <QImageReader>
 #include <QRegularExpression>
@@ -34,6 +35,7 @@ class ComparisonTests : public QObject {
         return image;
     }
 private slots:
+    void init() { AppSettings settings; settings.clear(); }
     void identical() {
         PerChannelMetric metric;
         const QString path = write("identical.png",solid(qRgb(21,43,65)));
@@ -279,6 +281,14 @@ private slots:
         QVERIFY(navigator); QVERIFY(navigator->height()>=300);
         QVERIFY(!window.findChildren<QGraphicsView *>().isEmpty());
         QVERIFY(window.windowTitle().contains("gui-left"));
+        for(const char *name : {"actionImage2","actionDifferenceImage","actionImage1",
+                               "actionDualPanel","actionDisplayWipe","actionDisplayWipe","actionDualPanel",
+                               "actionFullResolution","actionFitToWindow","actionRefresh"}) {
+            auto action=window.findChild<QAction *>(name); QVERIFY2(action,name);
+            QVERIFY2(action->isEnabled(),name); action->trigger(); QApplication::processEvents();
+        }
+        auto original=window.findChild<QAction *>("actionImage1");
+        QVERIFY(original->isChecked());
         QVERIFY(window.grab().save("gui-smoke.png"));
         window.close();
     }
