@@ -60,51 +60,17 @@ static inline int getLightness(const QRgb rgb)
 
 void PerLuminanceMetric::performDifference()
 {
-    Q_ASSERT(m_image1.size() == m_image2.size());
-
-    QImage output(m_image1.width(), m_image2.height(), QImage::Format_Grayscale8);
-
-    QImage img1 = m_image1;
-
-    if (img1.depth() < 32) {
-        img1 = img1.convertToFormat(img1.hasAlphaChannel() ?  QImage::Format_ARGB32 : QImage::Format_RGB32);
-    }
-
-    QImage img2 = m_image2;
-
-    if (img2.depth() < 32) {
-        img2 = img2.convertToFormat(img2.hasAlphaChannel() ?  QImage::Format_ARGB32 : QImage::Format_RGB32);
-    }
-
-    if (img1.format() == QImage::Format_ARGB32_Premultiplied && img2.format() == QImage::Format_ARGB32_Premultiplied) {
-        qDebug() << "premult";
-
-        for (int y = 0; y < output.height(); y++) {
-            uchar *dst = output.scanLine(y);
-            const QRgb *src1 = (QRgb *)img1.constScanLine(y);
-            const QRgb *src2 = (QRgb *)img2.constScanLine(y);
-
-            for (int x = 0; x < output.width(); ++x, ++src1, ++src2, ++dst) {
-                const QRgb pixel1 = qUnpremultiply(*src1);
-                const QRgb pixel2 = qUnpremultiply(*src2);
-
-                *dst = qAbs(getLightness(pixel1) - getLightness(pixel2));
-            }
-        }
-    } else if (img1.format() == QImage::Format_ARGB32_Premultiplied && img2.format() != QImage::Format_ARGB32_Premultiplied) {
-        // TODO blah
-        Q_ASSERT(img1.format() == QImage::Format_ARGB32_Premultiplied && img2.format() == QImage::Format_ARGB32_Premultiplied);
-    } else {
-        for (int y = 0; y < output.height(); y++) {
-            uchar *dst = output.scanLine(y);
-            const QRgb *src1 = (QRgb *)img1.constScanLine(y);
-            const QRgb *src2 = (QRgb *)img2.constScanLine(y);
-
-            for (int x = 0; x < output.width(); ++x, ++src1, ++src2, ++dst) {
-                *dst = qAbs(getLightness(*src1) - getLightness(*src2));
-            }
+    const QImage a = comparisonImage(m_image1);
+    const QImage b = comparisonImage(m_image2);
+    QImage output(a.size(), QImage::Format_RGB32);
+    auto luminance = [](QRgb pixel) {
+        return (30*qRed(pixel)+59*qGreen(pixel)+11*qBlue(pixel)+50)/100;
+    };
+    for (int y = 0; y < a.height(); ++y) {
+        for (int x = 0; x < a.width(); ++x) {
+            const int difference = qAbs(luminance(a.pixel(x,y))-luminance(b.pixel(x,y)));
+            output.setPixel(x,y,qRgb(difference,difference,difference));
         }
     }
-
     m_imageDiff = output;
 }

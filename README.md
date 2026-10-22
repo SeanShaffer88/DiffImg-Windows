@@ -1,10 +1,13 @@
-DiffImg is a simple image comparison tool which take two RGB images with the same size as input. Some statitics are computed and the positions where pixel differ are displayed as a color mask.
-Because DiffImg is written with Qt, it runs on Windows, Linux, OS/2 (MacOSX isn't tested yet).
+# DiffImg for Windows
 
-![screenshot](doc/screenshot.png)
+An independent Windows x64 revival of xbee's DiffImg, building on the lingo, sandsmark and arbruijn community forks. Baseline: arbruijn/diffimg `7c5715f89fb152c0d12a76a3e46a86122d7641bd`.
 
-You want to help ? You can proposed you as translator on transifex.com (DiffImg project) or post feedbacks on SourceForge:
-- http://sourceforge.net/p/diffimg/tickets for bug report or feature request
-- http://sourceforge.net/p/diffimg/discussion/ for general feedbacks
+This milestone provides a portable GUI and batch companion, fixes observed image-comparison bugs, and adds reproducible build instructions and regression tests. It preserves the original Qt interface and upstream notices.
 
-You can also help me by correcting my brief help page (I'm sure you've noticed that English is not my mother tongue! :)) Contact me xbee at xbee dot net
+- [Windows usage, comparison semantics and rebuild instructions](README-WINDOWS.md)
+- [Validation scope and limitations](VALIDATION.md)
+- [Component licensing and corresponding source](THIRD-PARTY.md)
+- [Pinned dependencies and download hashes](dependencies.lock.json)
+- [Original upstream README](README.txt)
+
+The runtime uses the old Qt 5.15.2 baseline. This is a tested revival milestone, not a security-audited release or Qt 6 port. Download and extract the entire portable package; dependency source bundles are provided separately with the release.

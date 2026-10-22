@@ -19,6 +19,8 @@
  *******************************************************************************/
 
 #include <QtCore/QDebug>
+#include <cmath>
+#include <algorithm>
 
 #include "PerceptualMetric.h"
 
@@ -154,9 +156,21 @@ void PerceptualMetric::performDifference()
     args.DownSample = getInputParam("Downsample")->threshold.toInt();
     args.ThresholdPixels = getOutputParam("ErrorNum")->threshold.toInt();
 
-    args.ImgA = qImageToRGBAImage(m_image1);
-    args.ImgB = qImageToRGBAImage(m_image2);
+    if (!std::isfinite(args.Gamma) || args.Gamma <= 0 || args.Gamma > 10 ||
+        !std::isfinite(args.FieldOfView) || args.FieldOfView < 0.1 || args.FieldOfView > 89.9 ||
+        !std::isfinite(args.Luminance) || args.Luminance <= 0 || args.Luminance > 10000 ||
+        !std::isfinite(args.ColorFactor) || args.ColorFactor < 0 || args.ColorFactor > 1 ||
+        args.DownSample < 0 || args.DownSample > 8) {
+        m_valid = false;
+        LogHandler::getInstance()->reportError("Invalid perceptual metric settings");
+        return;
+    }
+
+    args.ImgA = qImageToRGBAImage(comparisonImage(m_image1));
+    args.ImgB = qImageToRGBAImage(comparisonImage(m_image2));
     args.ImgDiff = new RGBAImage(m_image1.width(), m_image2.height(), "");
+    // Yee_Compare returns early for identical images without writing ImgDiff.
+    std::fill_n(args.ImgDiff->Get_Data(), size_t(m_image1.width())*m_image1.height(), qRgba(0,0,0,255));
 
     if (!args.ImgA || !args.ImgB) { // convert problem
         LogHandler::getInstance()->reportError("PerceptualDiff: Error during image conversion");

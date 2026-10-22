@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.21)
 
-project(diffimg LANGUAGES CXX)
+project(diffimg VERSION 2.3.0 LANGUAGES CXX)
+include(CTest)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -8,15 +9,15 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOUIC_SEARCH_PATHS ui)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTORCC_OPTIONS --format-version 1)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Qwt REQUIRED)
-
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
-add_executable(diffimg
+find_package(Qwt REQUIRED)
+add_library(diffimg_core STATIC
     # Main sources
     src/AboutDialog.cpp
     src/AboutDialog.h
@@ -37,7 +38,6 @@ add_executable(diffimg
     src/IMessageHandler.h
     src/LogHandler.cpp
     src/LogHandler.h
-    src/main.cpp
     src/MiscFunctions.cpp
     src/MiscFunctions.h
     src/PropertyWidget.cpp
@@ -96,12 +96,32 @@ add_executable(diffimg
     3rdparty/qtpropertybrowser/qtvariantproperty.h
     )
 
-target_include_directories(diffimg PRIVATE
+target_include_directories(diffimg_core PUBLIC
+    "${CMAKE_CURRENT_BINARY_DIR}/diffimg_core_autogen/include"
     src
     src/metrics
 
     3rdparty/perceptualdiff
     3rdparty/qtpropertybrowser
     )
-target_link_libraries(diffimg PRIVATE Qwt::Qwt Qt5::Widgets)
-install(TARGETS diffimg DESTINATION bin)
+target_link_libraries(diffimg_core PUBLIC Qwt::Qwt Qt5::Widgets)
+target_compile_definitions(diffimg_core PUBLIC QWT_DLL NOMINMAX _CRT_SECURE_NO_WARNINGS)
+if(MSVC)
+    target_compile_options(diffimg_core PUBLIC /utf-8 /Brepro)
+endif()
+add_executable(diffimg WIN32 src/main.cpp)
+target_link_libraries(diffimg PRIVATE diffimg_core)
+add_executable(diffimg-cli src/main.cpp)
+target_compile_definitions(diffimg-cli PRIVATE DIFFIMG_CONSOLE)
+target_link_libraries(diffimg-cli PRIVATE diffimg_core)
+if(MSVC)
+    target_link_options(diffimg PRIVATE /Brepro)
+    target_link_options(diffimg-cli PRIVATE /Brepro)
+endif()
+install(TARGETS diffimg diffimg-cli RUNTIME DESTINATION .)
+if(BUILD_TESTING)
+    find_package(Qt5 COMPONENTS Test REQUIRED)
+    add_executable(comparison-tests tests/comparison_tests.cpp)
+    target_link_libraries(comparison-tests PRIVATE diffimg_core Qt5::Test)
+    add_test(NAME comparisons COMMAND comparison-tests -platform windows -o comparison-results.xml,xml)
+endif()

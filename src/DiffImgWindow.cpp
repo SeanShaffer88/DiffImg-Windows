@@ -114,6 +114,8 @@ DiffImgWindow::DiffImgWindow(QWidget *parent)
         m_wipeMethod(WipeMethod::WIPE_HORIZONTAL)
 {
     setupUi(this);
+    dockWidgetNavigator->setMinimumWidth(260);
+    dockWidgetProperties->setMinimumWidth(260);
     updateUi();
     loadSettings();
 }
@@ -320,7 +322,7 @@ void DiffImgWindow::loadSettings()
 
     restoreState(settings.value("MainWindowState").toByteArray(), 0);
 
-    resize(settings.value("size", QSize(800, 800)).toSize());
+    resize(settings.value("size", QSize(1280, 850)).toSize());
     move(settings.value("pos", QPoint(200, 200)).toPoint());
 
     // check if restore position isn't outside the current screen definitions (additional screen has been unplugged)

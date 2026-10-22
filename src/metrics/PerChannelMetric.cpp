@@ -48,62 +48,19 @@ QPixmap PerChannelMetric::getLogo() const
 
 void PerChannelMetric::performDifference()
 {
-    Q_ASSERT(m_image1.size() == m_image2.size());
-
-    QImage output(m_image1.width(), m_image2.height(), QImage::Format_RGB32);
-
-    QImage img1 = m_image1;
-
-    if (img1.depth() < 32) {
-        img1 = img1.convertToFormat(img1.hasAlphaChannel() ?  QImage::Format_ARGB32 : QImage::Format_RGB32);
-    }
-
-    QImage img2 = m_image2;
-
-    if (img2.depth() < 32) {
-        img2 = img2.convertToFormat(img2.hasAlphaChannel() ?  QImage::Format_ARGB32 : QImage::Format_RGB32);
-    }
-
-    if (img1.format() == QImage::Format_ARGB32_Premultiplied && img2.format() == QImage::Format_ARGB32_Premultiplied) {
-        for (int y = 0; y < output.height(); y++) {
-            uchar *dst = output.scanLine(y);
-            const QRgb *src1 = (QRgb *)img1.constScanLine(y);
-            const QRgb *src2 = (QRgb *)img2.constScanLine(y);
-
-            for (int x = 0; x < output.width(); ++x, ++src1, ++src2, ++dst) {
-                const QRgb pixel1 = qUnpremultiply(*src1);
-                const QRgb pixel2 = qUnpremultiply(*src2);
-
-                const uint8_t r = qAbs(qRed(pixel1) - qRed(pixel2));
-                const uint8_t g = qAbs(qGreen(pixel1) - qGreen(pixel2));
-                const uint8_t b = qAbs(qBlue(pixel1) - qBlue(pixel2));
-                const uint8_t a = qMax(qAlpha(pixel1), qAlpha(pixel2));
-
-                *dst = qPremultiply(qRgba(r, g, b, a));
-            }
-        }
-    } else if (img1.format() == QImage::Format_ARGB32_Premultiplied && img2.format() != QImage::Format_ARGB32_Premultiplied) {
-        // TODO blah
-        Q_ASSERT(img1.format() == QImage::Format_ARGB32_Premultiplied && img2.format() == QImage::Format_ARGB32_Premultiplied);
-    } else {
-        for (int y = 0; y < output.height(); y++) {
-            QRgb *dst = (QRgb *)output.scanLine(y);
-            const QRgb *src1 = (QRgb *)img1.constScanLine(y);
-            const QRgb *src2 = (QRgb *)img2.constScanLine(y);
-
-            for (int x = 0; x < output.width(); ++x, ++src1, ++src2, ++dst) {
-                const QRgb pixel1 = *src1;
-                const QRgb pixel2 = *src2;
-
-                const uint8_t r = qAbs(qRed(pixel1) - qRed(pixel2));
-                const uint8_t g = qAbs(qGreen(pixel1) - qGreen(pixel2));
-                const uint8_t b = qAbs(qBlue(pixel1) - qBlue(pixel2));
-                const uint8_t a = qMax(qAlpha(pixel1), qAlpha(pixel2));
-                *dst = qRgba(r, g, b, a); // qAbs(pixel1 - pixel2);
-            }
+    const QImage a = comparisonImage(m_image1);
+    const QImage b = comparisonImage(m_image2);
+    QImage output(a.size(), QImage::Format_RGB32);
+    for (int y = 0; y < a.height(); ++y) {
+        const QRgb *left = reinterpret_cast<const QRgb *>(a.constScanLine(y));
+        const QRgb *right = reinterpret_cast<const QRgb *>(b.constScanLine(y));
+        QRgb *dest = reinterpret_cast<QRgb *>(output.scanLine(y));
+        for (int x = 0; x < a.width(); ++x) {
+            dest[x] = qRgb(qAbs(qRed(left[x])-qRed(right[x])),
+                           qAbs(qGreen(left[x])-qGreen(right[x])),
+                           qAbs(qBlue(left[x])-qBlue(right[x])));
         }
     }
-
     m_imageDiff = output;
 }
 

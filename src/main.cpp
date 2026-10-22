@@ -23,6 +23,9 @@
 #include <QMessageBox>
 #include <QDesktopWidget>
 #include <QtCore/QFileInfo>
+#include <QTextStream>
+#include <QDebug>
+#include <cmath>
 
 #include "DiffImgWindow.h"
 #include "AppSettings.h"
@@ -34,6 +37,7 @@
 
 const int EXIT_OK = 0;
 const int EXIT_NOK = 1;
+const int EXIT_ERROR = 2;
 
 #ifdef Q_OS_UNIX
 #include <time.h>
@@ -199,10 +203,10 @@ void usage()
     out << QObject::tr(" --portable             : use settings file location near the executable (for portable use).") << Qt::endl;
     out << QObject::tr("") << Qt::endl;
     out << QObject::tr(" --batch                : batch mode. Differences are computed without GUI and return code is used as result.") << Qt::endl;
-    out << QObject::tr(" --output filename      : save difference image. The difference is only saved when the input files aren't strictly identical.") << Qt::endl;
+    out << QObject::tr(" --output filename      : save difference image to a new file; existing files are never overwritten.") << Qt::endl;
     out << QObject::tr(" --metric name          : metric tag name. Display list of metrics with --list option.") << Qt::endl;
     out << QObject::tr(" --in  name=value       : input parameter update.") << Qt::endl;
-    out << QObject::tr(" --threshold name=value : output parameter used to define comparison batch mode. If you set several threshold parameters, only the last one will be kept.") << Qt::endl;
+    out << QObject::tr(" --threshold name=value : all supplied thresholds must pass. Default: ErrorNum=0. Exit 0=pass, 1=different, 2=error.") << Qt::endl;
 
 }
 
@@ -212,7 +216,7 @@ int makeDiffBatch(const QString &file1, const QString &file2, const QString &met
 {
     if (!QFileInfo(file1).exists() || !QFileInfo(file2).exists()) {
         qWarning() << QObject::tr("You must set valid filename files as arguments in batch mode!!");
-        return EXIT_NOK;
+        return EXIT_ERROR;
     }
 
     // metrics registering
@@ -238,11 +242,27 @@ int makeDiffBatch(const QString &file1, const QString &file2, const QString &met
 
     if (!met) {
         qWarning() << QObject::tr("Metric %1 unknown!!").arg(metric);
-        return EXIT_NOK;
+        return EXIT_ERROR;
     }
 
     // set input parameters
     const QList<MetricParam *> &listInput = met->getInputParams();
+
+    for (auto it = inParams.begin(); it != inParams.end(); ++it) {
+        bool ok = false;
+        const double value = it.value().toDouble(&ok);
+        const MetricParam *param = met->getInputParam(it.key());
+        if (!param || !ok || !std::isfinite(value) ||
+            (it.key() == "Gamma" && (value <= 0 || value > 10)) ||
+            (it.key() == "FOV" && (value < 0.1 || value > 89.9)) ||
+            (it.key() == "Luminance" && (value <= 0 || value > 10000)) ||
+            (it.key() == "ColorFactor" && (value < 0 || value > 1)) ||
+            (it.key() == "Downsample" && (value < 0 || value > 8 || value != std::floor(value))) ||
+            (it.key() == "LuminanceOnly" && value != 0 && value != 1)) {
+            qWarning() << "Invalid metric input:" << it.key();
+            return EXIT_ERROR;
+        }
+    }
 
     if (!inParams.isEmpty() && listInput.isEmpty()) {
         qWarning() << QObject::tr("Metric %1 has no input parameter!!").arg(met->getType());
@@ -261,10 +281,27 @@ int makeDiffBatch(const QString &file1, const QString &file2, const QString &met
 
     const QList<MetricParam *> &listOutput = met->getOutputParams();
 
+    for (auto it = outParams.begin(); it != outParams.end(); ++it) {
+        bool ok = false;
+        const double value = it.value().toDouble(&ok);
+        const MetricParam *param = met->getOutputParam(it.key());
+        if (!param || !ok || !std::isfinite(value) || value < 0 || value > 2147483647 ||
+            (param->threshold.type() == QVariant::Int && value != std::floor(value))) {
+            qWarning() << "Invalid threshold:" << it.key();
+            return EXIT_ERROR;
+        }
+    }
+
     // clear saved settings
     foreach (MetricParam *param, listOutput) {
         param->reset();
         param->used = false;
+    }
+
+    if (outParams.isEmpty()) {
+        auto strict = met->getOutputParam("ErrorNum");
+        strict->threshold = 0;
+        strict->used = true;
     }
 
     if (!outParams.isEmpty()) {
@@ -282,7 +319,12 @@ int makeDiffBatch(const QString &file1, const QString &file2, const QString &met
 
     if (!met->isValid()) {
         qWarning() << QObject::tr("Can't display difference, more information in the log panel ...");
-        return EXIT_NOK;
+        return EXIT_ERROR;
+    }
+
+    if (!outFile.isEmpty() && (QFileInfo::exists(outFile) || !met->saveDifference(outFile))) {
+        qWarning() << "Refusing to overwrite an existing output, or could not save difference:" << outFile;
+        return EXIT_ERROR;
     }
 
     if (!met->getPixelError()) {
@@ -307,12 +349,6 @@ int makeDiffBatch(const QString &file1, const QString &file2, const QString &met
         out << param->type << " = " << param->value.toString() << " (threshold = " << param->threshold.toString() << ")" << Qt::endl;
     }
 
-    if (!outFile.isEmpty()) {
-        if (!met->saveDifference(outFile)) {
-            out << QObject::tr("Can't save difference image in %1").arg(outFile) << Qt::endl;
-        }
-    }
-
     if (met->selectedStatsIsValid()) {
         out << QObject::tr("Files are identical (under the threshold)") << Qt::endl;
         return EXIT_OK;
@@ -331,7 +367,7 @@ int main(int argc, char *argv[])
 #ifdef Q_WS_MAC
     app.addLibraryPath(QApplication::applicationDirPath() + "/../plugins");
 #endif
-    app.addLibraryPath(QApplication::applicationDirPath() + "./plugins");
+    app.addLibraryPath(QApplication::applicationDirPath() + "/plugins");
 
     // update some application infos (use by some platform for temp storage, ...)
     MiscFunctions::updateApplicationIdentity();
@@ -357,6 +393,12 @@ int main(int argc, char *argv[])
 
     for (int i = 1; i < args.count(); ++i) {
         const QString arg = args.at(i);
+
+        if ((arg == "--metric" || arg == "--in" || arg == "--threshold" || arg == "--output") &&
+            (i+1 >= args.count() || args.at(i+1).startsWith("--"))) {
+            qWarning() << "Missing value for" << arg;
+            return EXIT_ERROR;
+        }
 
         if (arg == "--reset-config") {
             forceResetConfig = true;
@@ -393,6 +435,10 @@ int main(int argc, char *argv[])
             QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, QApplication::applicationDirPath());
             QSettings::setDefaultFormat(QSettings::IniFormat);
         } else {
+            if (arg.startsWith("--")) {
+                qWarning() << "Unknown option:" << arg;
+                return EXIT_ERROR;
+            }
             files << arg;
         }
     }
@@ -404,12 +450,12 @@ int main(int argc, char *argv[])
     if (errorInParameters) {
         qWarning() << QObject::tr("Error in options!");
         usage();
-        return EXIT_NOK;
+        return EXIT_ERROR;
     }
 
     // check batch mode
     if (batchMode) {
-#ifdef Q_OS_WIN // console in win32
+#if defined(Q_OS_WIN) && !defined(DIFFIMG_CONSOLE)
 
         if (attachToConsole()) {
             redirectToConsole();
@@ -422,7 +468,7 @@ int main(int argc, char *argv[])
         } else {
             qWarning() << QObject::tr("You must set at least two files as arguments in batch mode!!");
             usage();
-            return EXIT_NOK;
+            return EXIT_ERROR;
         }
     }
 

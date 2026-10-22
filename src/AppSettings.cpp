@@ -19,8 +19,9 @@
  *******************************************************************************/
 
 #include "AppSettings.h"
+#include <QCoreApplication>
 
 AppSettings::AppSettings()
-    : QSettings()
+    : QSettings(QCoreApplication::applicationDirPath() + "/DiffImg.ini", QSettings::IniFormat)
 {
 }

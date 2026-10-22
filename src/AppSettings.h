@@ -25,9 +25,9 @@
 
 #define PACKAGE_ORGANIZATION "TheHive"
 #define PACKAGE_NAME "DiffImg"
-#define PACKAGE_VERSION "2.2.0"
-#define PACKAGE_ONLINE_HELP_URL "http://thehive.xbee.net/index.php?module=pages&func=display&pageid=11"
-#define PACKAGE_CHECK_RELEASE_URL "http://sourceforge.net/projects/diffimg/files"
+#define PACKAGE_VERSION "2.3.0-win1"
+#define PACKAGE_ONLINE_HELP_URL "https://github.com/SeanShaffer88/DiffImg-Windows"
+#define PACKAGE_CHECK_RELEASE_URL "https://github.com/SeanShaffer88/DiffImg-Windows/releases"
 #define PACKAGE_DESCRIPTION "Image difference viewer"
 
 class AppSettings : public QSettings

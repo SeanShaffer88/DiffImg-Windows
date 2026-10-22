@@ -22,6 +22,7 @@
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
+#include <QImageReader>
 
 #include <cmath>
 
@@ -530,7 +531,7 @@ void BaseMetric::computeStandardProperties()
 
     m_properties << ImageProperty(tr("Format file1"), tr("Format of the image"), QString("%1").arg(fm1));
 
-    QString ext2 = QFileInfo(m_file1).suffix();
+    QString ext2 = QFileInfo(m_file2).suffix();
     QString fm2 = tr("Unknown");
 
     if (longFormats.contains(ext2)) {
@@ -694,6 +695,22 @@ const QImage &BaseMetric::getImageDifference() const
 bool BaseMetric::saveDifference(const QString &file) const
 {
     return m_imageDiff.save(file);
+}
+
+QImage BaseMetric::comparisonImage(const QImage &input)
+{
+    const QImage straight = input.convertToFormat(QImage::Format_ARGB32);
+    QImage output(straight.size(), QImage::Format_RGB32);
+    for (int y = 0; y < straight.height(); ++y) {
+        const QRgb *src = reinterpret_cast<const QRgb *>(straight.constScanLine(y));
+        QRgb *dst = reinterpret_cast<QRgb *>(output.scanLine(y));
+        for (int x = 0; x < straight.width(); ++x) {
+            const int a = qAlpha(src[x]);
+            auto overWhite = [a](int channel) { return (channel*a + 255*(255-a)+127)/255; };
+            dst[x] = qRgb(overWhite(qRed(src[x])),overWhite(qGreen(src[x])),overWhite(qBlue(src[x])));
+        }
+    }
+    return output;
 }
 
 const QImage &BaseMetric::getImageMask() const
@@ -930,15 +947,16 @@ void BaseMetric::computeHisto(const QImage &input, QList<QPolygonF> &polys, bool
 }
 QImage BaseMetric::createDiffMask(const QImage &img)
 {
+    const QImage normalized = img.convertToFormat(QImage::Format_RGB32);
     QImage ret(img.width(), img.height(), QImage::Format_ARGB32_Premultiplied);
     ret.fill(Qt::transparent);
 
     for (int line = 0; line < img.height(); line++) {
-        const QRgb *pixels = (const QRgb *)img.scanLine(line);
+        const QRgb *pixels = (const QRgb *)normalized.constScanLine(line);
         QRgb *dest = (QRgb *)ret.scanLine(line);
 
         for (int i = 0; i < img.width(); ++i, ++pixels, ++dest) {
-            const int val = qGray(*pixels);
+            const int val = qMax(qRed(*pixels), qMax(qGreen(*pixels), qBlue(*pixels)));
 
             if (val == 0) {
                 continue;
@@ -964,6 +982,8 @@ void BaseMetric::checkDifferences(const QString &file1, const QString &file2)
     m_maxError = 0;
     m_minError = 0;
     m_meanError = 0;
+    m_imageDiff = QImage();
+    m_imageMask = QImage();
     m_minImage1 = 0.0;
     m_minImage2 = 0.0;
     m_maxImage1 = 0.0;
@@ -976,32 +996,27 @@ void BaseMetric::checkDifferences(const QString &file1, const QString &file2)
     init();
     resetOutputParams();
 
-    m_image1 = QImage(m_file1);
+    auto readBounded = [](const QString &file) {
+        QImageReader reader(file);
+        const QSize size = reader.size();
+        if (!size.isValid() || qint64(size.width())*size.height() > 16777216) {
+            LogHandler::getInstance()->reportError("Unreadable image header or image exceeds 16,777,216 pixels: " + file);
+            return QImage();
+        }
+        return reader.read();
+    };
+    m_image1 = readBounded(m_file1);
 
     if (m_image1.size().isEmpty()) {
         LogHandler::getInstance()->reportDebug(QString("Can't load %1").arg(m_file1));
         return;
     }
 
-    m_image2 = QImage(m_file2);
+    m_image2 = readBounded(m_file2);
 
     if (m_image2.size().isEmpty()) {
         LogHandler::getInstance()->reportDebug(QString("Can't load %1").arg(m_file2));
         return;
-    }
-
-    if (m_image1.size() != m_image2.size()) {
-        int maxWidth = qMax(m_image1.width(), m_image2.width());
-        int maxHeight = qMax(m_image1.height(), m_image2.height());
-
-        if (m_image1.width() < m_image2.width() && m_image1.height() < m_image2.height()) {
-            m_image1 = m_image1.scaled(maxWidth, maxHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-        } else if (m_image2.width() < m_image1.width() && m_image2.height() < m_image1.height()) {
-            m_image2 = m_image2.scaled(maxWidth, maxHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-        } else {
-            m_image1 = m_image1.convertToFormat(QImage::Format_ARGB32).copy(0, 0, maxWidth, maxHeight);
-            m_image2 = m_image2.convertToFormat(QImage::Format_ARGB32).copy(0, 0, maxWidth, maxHeight);
-        }
     }
 
     // check compatibility
@@ -1014,6 +1029,10 @@ void BaseMetric::checkDifferences(const QString &file1, const QString &file2)
 
     // perform the difference algorithm
     performDifference();
+    if (!m_valid || m_imageDiff.isNull()) {
+        m_valid = false;
+        return;
+    }
 
     // compute some statistics on difference image
     computeStatistics();
@@ -1025,10 +1044,11 @@ void BaseMetric::checkDifferences(const QString &file1, const QString &file2)
 
 static size_t countNonBlack(const QImage &img)
 {
+    const QImage normalized = img.convertToFormat(QImage::Format_RGB32);
     size_t ret = 0;
 
     for (int line = 0; line < img.height(); line++) {
-        QRgb *pixels = (QRgb *)img.scanLine(line);
+        const QRgb *pixels = (const QRgb *)normalized.constScanLine(line);
 
         for (int i = 0; i < img.width(); ++i, ++pixels) {
             // I think it should use qGray(), but to preserve compatibility with opencv we do it the bad way

@@ -1,4 +1,8 @@
 release/
+build*/
+*.ini
+__pycache__/
+*.pyc
 moc_*.h
 moc_*.cpp
 qrc_*.cpp

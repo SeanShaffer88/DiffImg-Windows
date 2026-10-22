@@ -120,6 +120,8 @@ public:
     int getImage2Channels() const;
     int getImage1Channels() const;
     bool saveDifference(const QString &) const;
+    // Compare 8-bit RGB after alpha compositing over white, consistently for all metrics.
+    static QImage comparisonImage(const QImage &input);
 
     double getMaxImage1() const;
     double getMaxImage2() const;
