@@ -10,4 +10,4 @@ This milestone provides a portable GUI and batch companion, fixes observed image
 - [Pinned dependencies and download hashes](dependencies.lock.json)
 - [Original upstream README](README.txt)
 
-The runtime uses the old Qt 5.15.2 baseline. This is a tested revival milestone, not a security-audited release or Qt 6 port. Download and extract the entire portable package; dependency source bundles are provided separately with the release.
+The runtime uses the old Qt 6.12.0 baseline. This is a tested revival milestone, not a security-audited release or Qt 6 port. Download and extract the entire portable package; dependency source bundles are provided separately with the release.

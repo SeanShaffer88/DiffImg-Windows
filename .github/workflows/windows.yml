@@ -26,7 +26,7 @@ jobs:
         run: |
           $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           $vc = (Get-ChildItem "$vs/VC/Tools/MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
-          $sdk = (Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/Include" -Directory | Sort-Object Name -Descending | Select-Object -First 1).Name
+          $sdk = (Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/Include" -Directory | Where-Object Name -Match '^10\.' | Sort-Object Name -Descending | Select-Object -First 1).Name
           $tools = Split-Path (Get-Command cmake.exe).Source
           python tools/build_windows.py --qt-root .deps/Qt/6.12.0/msvc2022_64 --qwt-source .deps/qwt --msvc-root "$vc" --sdk-version "$sdk" --tools-dir "$tools" --build-root build-release
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
