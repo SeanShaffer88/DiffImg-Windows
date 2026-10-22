@@ -33,6 +33,8 @@ jobs:
           $crt = (Get-ChildItem "$vs/VC/Redist/MSVC" -Directory | Where-Object Name -Match '^14\.' | Sort-Object Name -Descending | Select-Object -First 1).FullName + '/x64/Microsoft.VC143.CRT'
           python tools/package_windows.py --build-root build-release --qt-root .deps/Qt/6.12.0/msvc2022_64 --crt-root "$crt" --qt-source .deps/Qt/qtbase-everywhere-src-6.12.0.tar.xz --output staging
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/test_asan_windows.py --qt-root .deps/Qt/6.12.0/msvc2022_64 --build-root build-release --msvc-root "$vc" --sdk-root "${env:ProgramFiles(x86)}/Windows Kits/10" --sdk-version "$sdk" --tools-dir "$tools"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           New-Item -ItemType Directory qa | Out-Null
           Copy-Item build-release/app/comparison-tests.exe qa/
           Copy-Item .deps/Qt/6.12.0/msvc2022_64/bin/Qt6Test.dll qa/
@@ -51,6 +53,7 @@ jobs:
             build-release/*results*
             build-release/binary-hashes.json
             build-release/app/comparison-results.xml
+            build-release/asan/comparison-results.xml
   deployment:
     needs: build
     strategy:
