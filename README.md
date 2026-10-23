@@ -2,6 +2,10 @@
 
 An independent Windows x64 revival of xbee's DiffImg, building on the lingo, sandsmark and arbruijn community forks. Baseline: arbruijn/diffimg `7c5715f89fb152c0d12a76a3e46a86122d7641bd`.
 
+## TL;DR
+
+DiffImg for Windows is a revived, portable Windows x64 build of the DiffImg image-comparison tool. Select two images with the same dimensions and it shows exactly which pixels differ, with per-channel, channel-mean, luminance and perceptual metrics, statistics, and a batch command-line companion for automated checks. Version 2.4.0 is a stable, validated release (see VALIDATION.md for exactly what was tested and what was not) and is free software under the GPL. Download the portable ZIP from the latest release, extract it into a writable folder, and run diffimg.exe - no installer, administrator access, or Qt SDK needed. The package is unsigned.
+
 Version 2.4.0 provides a portable GUI and batch companion, fixes observed image-comparison bugs, and adds reproducible build instructions and regression tests. It preserves the original Qt interface and upstream notices.
 
 - [Windows usage, comparison semantics and rebuild instructions](README-WINDOWS.md)
