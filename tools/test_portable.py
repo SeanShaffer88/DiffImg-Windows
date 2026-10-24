@@ -119,6 +119,13 @@ def main():
             result['native_gui_alive']=True
         finally:
             process.terminate();process.wait(timeout=5)
+        project=subprocess.Popen([str(folder/'diffimg.exe'),'--project-review',str(folder/'examples/baseline'),str(folder/'examples/current')],cwd=folder,env=env)
+        try:
+            time.sleep(1)
+            assert project.poll() is None,'Project review launcher exited unexpectedly'
+            result['project_review_launcher_alive']=True
+        finally:
+            project.terminate();project.wait(timeout=5)
         # Inspect module origins on ASCII paths; verify Unicode behavior separately.
         unicode_folder=Path(temporary)/'Unicode Ω App'
         shutil.copytree(folder,unicode_folder)
