@@ -1,4 +1,4 @@
-# DiffImg for Windows — 2.5.0
+# DiffImg for Windows — 2.6.0
 
 Windows x64 revival release based on arbruijn/diffimg commit `7c5715f89fb152c0d12a76a3e46a86122d7641bd`, descended from the sandsmark and lingo forks and xbee's original DiffImg. Original authorship and license notices are preserved. This is an independent revival, not an official upstream release.
 
@@ -77,9 +77,9 @@ Folder exit codes: 0 all pass, 1 changed/missing images, 2 invalid inputs/profil
 
 Restore backup accepts that baseline folder's transaction manifest, verifies originals and refuses conflicting subsequent edits. Newly approved additions are removed on restore. Prepared manifests permit recovery from interrupted approval; already-restored original bytes are skipped on retry. Keep backups until satisfied. This is per-file recovery, not a filesystem-wide transaction or a lock against other editors; storage/controller power-loss behavior is not certified. Do not edit manifests/backups manually.
 
-**Windows polish/signing:** both executables embed the original DiffImg icon and 2.5.0 product/version metadata. The published package uses the existing SeanShaffer88 self-signed Authenticode certificate. This provides an embedded identity/integrity check, not public Windows publisher trust or SmartScreen reputation. Public certificate/SIGNING.txt accompany signed packages; no private key or trust-store changes are included. CI rebuilds remain unsigned. Packaging can use an existing certificate via `--sign-thumbprint THUMBPRINT`.
+**Windows polish/signing:** both executables embed the original DiffImg icon and 2.6.0 product/version metadata. The published package uses the existing SeanShaffer88 self-signed Authenticode certificate. This provides an embedded identity/integrity check, not public Windows publisher trust or SmartScreen reputation. Public certificate/SIGNING.txt accompany signed packages; no private key or trust-store changes are included. CI rebuilds remain unsigned. Packaging can use an existing certificate via `--sign-thumbprint THUMBPRINT`.
 
-## Review productivity additions (development)
+## Review productivity — 2.6.0
 
 F8 / Shift+F8 move through changed, missing or error files in the current sorted/filtered table. Hover over the preview for normalized baseline/current RGB and absolute channel deltas. Pixel coordinates use the image cell under the pointer. HTML export offers all, visible or selected results.
 

@@ -25,7 +25,6 @@ Vendor Qt/Qwt DLLs are not sanitizer-instrumented. Hosted Windows Server images 
 
 Baseline operations use hash checks, an operation lock, verified originals and per-file atomic replacement/recovery. They are not filesystem-wide atomic transactions or a concurrency guarantee against unrelated editors. Prepared recovery, junctions and conflict/error cases are tested; power-loss/storage-controller behavior is not certified. Backups require space and remain until the user removes them. See README-WINDOWS.md for exact recovery and signing behavior.
 
-## Post-2.5.0 development: review productivity
+## 2.6.0 review productivity validation
 
-Windows x64 local build and CTest passed: 24 legacy + 18 project-review XML pass records (38 unique cases excluding setup/cleanup). All 31 single-image and 23 folder CLI cases passed. New coverage checks JSON/JUnit totals, XML escaping, stale-output refusal, no overwrite, input-folder refusal, pixel inspection and failing-file navigation. These are development changes; the published v2.5.0 portable assets are unchanged. Fresh hosted runner and ASan checks are pending the pushed workflow.
-
+Windows x64 local build and CTest passed: 24 legacy + 18 project-review XML pass records (38 unique cases excluding setup/cleanup). All 31 single-image and 23 folder CLI cases passed. New coverage checks JSON/JUnit totals, XML escaping, stale-output refusal, no overwrite, input-folder refusal, pixel inspection and failing-file navigation. The preceding development commit passed hosted Windows Server 2022/2025 portable deployment and application/bundled-code ASan (workflow 40049264812). The versioned 2.6.0 build and exact release ZIP are gated again before stable publication; final workflow and asset hashes are recorded with the release.

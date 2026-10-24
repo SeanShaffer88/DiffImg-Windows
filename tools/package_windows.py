@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT=Path(__file__).resolve().parents[1]
-NAME='DiffImg-2.5.0-win-x64'
+NAME='DiffImg-2.6.0-win-x64'
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

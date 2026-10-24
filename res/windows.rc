@@ -1,8 +1,8 @@
 #include <windows.h>
 1 ICON "diffimg.ico"
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,5,0,0
- PRODUCTVERSION 2,5,0,0
+ FILEVERSION 2,6,0,0
+ PRODUCTVERSION 2,6,0,0
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
  FILEFLAGS 0
  FILEOS VOS_NT_WINDOWS32
@@ -14,9 +14,9 @@ BEGIN
   BEGIN
    VALUE "CompanyName", "DiffImg contributors / SeanShaffer88\0"
    VALUE "FileDescription", "DiffImg image comparison and screenshot review\0"
-   VALUE "FileVersion", "2.5.0\0"
+   VALUE "FileVersion", "2.6.0\0"
    VALUE "ProductName", "DiffImg for Windows\0"
-   VALUE "ProductVersion", "2.5.0\0"
+   VALUE "ProductVersion", "2.6.0\0"
    VALUE "LegalCopyright", "Original DiffImg contributors; Windows revival 2026. GPL-2.0-or-later.\0"
   END
  END

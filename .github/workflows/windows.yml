@@ -86,7 +86,7 @@ jobs:
       - name: Verify app-local deployment without installing Qt
         shell: pwsh
         run: |
-          python tools/test_portable.py --package artifact/staging/DiffImg-2.5.0-win-x64 --test-exe artifact/qa/comparison-tests.exe --review-test-exe artifact/qa/review-tests.exe --qt-test-dll artifact/qa/Qt6Test.dll --results portable-results.json
+          python tools/test_portable.py --package artifact/staging/DiffImg-2.6.0-win-x64 --test-exe artifact/qa/comparison-tests.exe --review-test-exe artifact/qa/review-tests.exe --qt-test-dll artifact/qa/Qt6Test.dll --results portable-results.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
@@ -122,7 +122,7 @@ jobs:
           Invoke-WebRequest -Uri $env:CANDIDATE_URL -OutFile candidate.zip
           if ((Get-FileHash candidate.zip -Algorithm SHA256).Hash -ne $env:CANDIDATE_SHA256) { throw 'Candidate digest mismatch' }
           Expand-Archive -LiteralPath candidate.zip -DestinationPath candidate
-          python tools/test_portable.py --package candidate/DiffImg-2.5.0-win-x64 --test-exe artifact/qa/comparison-tests.exe --review-test-exe artifact/qa/review-tests.exe --qt-test-dll artifact/qa/Qt6Test.dll --results exact-candidate-results.json
+          python tools/test_portable.py --package candidate/DiffImg-2.6.0-win-x64 --test-exe artifact/qa/comparison-tests.exe --review-test-exe artifact/qa/review-tests.exe --qt-test-dll artifact/qa/Qt6Test.dll --results exact-candidate-results.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()

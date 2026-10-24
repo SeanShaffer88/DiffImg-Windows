@@ -25,7 +25,7 @@
 
 #define PACKAGE_ORGANIZATION "TheHive"
 #define PACKAGE_NAME "DiffImg"
-#define PACKAGE_VERSION "2.5.0"
+#define PACKAGE_VERSION "2.6.0"
 #define PACKAGE_ONLINE_HELP_URL "https://github.com/SeanShaffer88/DiffImg-Windows"
 #define PACKAGE_CHECK_RELEASE_URL "https://github.com/SeanShaffer88/DiffImg-Windows/releases"
 #define PACKAGE_DESCRIPTION "Image difference viewer"

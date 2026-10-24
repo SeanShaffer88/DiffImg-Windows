@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(diffimg VERSION 2.5.0 LANGUAGES CXX)
+project(diffimg VERSION 2.6.0 LANGUAGES CXX)
 include(CTest)
 option(DIFFIMG_ASAN "Instrument application and bundled comparison code with MSVC AddressSanitizer" OFF)
 
