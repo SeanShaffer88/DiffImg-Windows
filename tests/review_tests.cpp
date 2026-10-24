@@ -246,6 +246,34 @@ private slots:
         p.meanError = std::nextafter(1.0 / 3.0, 0.0);
         QCOMPARE(compare(entry, p).status, QString("Changed"));
     }
+    void veryThinReportPreviews()
+    {
+        auto a = folder("thin-a"), b = folder("thin-b");
+        for (QSize size : { QSize(1, 4000), QSize(4000, 1) }) {
+            const QString name = QString("thin-%1.png").arg(size.width());
+            QImage image(size, QImage::Format_RGB32);
+            image.fill(Qt::black);
+            const QString left = QDir(a).filePath(name), right = QDir(b).filePath(name);
+            QVERIFY(image.save(left));
+            image.fill(Qt::white);
+            QVERIFY(image.save(right));
+            Entry e;
+            e.relative = name;
+            e.left = left;
+            e.right = right;
+            e = compare(e, Profile());
+            auto report = temp.filePath(name + ".html");
+            exportHtml(report, { e }, Profile());
+            QFile file(report);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            auto match = QRegularExpression("base64,([^']+)").match(QString::fromUtf8(file.readAll()));
+            QVERIFY(match.hasMatch());
+            auto preview = QImage::fromData(QByteArray::fromBase64(match.captured(1).toLatin1()));
+            QVERIFY(!preview.isNull());
+            QVERIFY(preview.width() >= 1 && preview.width() <= 1600);
+            QVERIFY(preview.height() >= 1 && preview.height() <= 1600);
+        }
+    }
     void workbenchNativeWorkflow()
     {
         Q_INIT_RESOURCE(diffimg);

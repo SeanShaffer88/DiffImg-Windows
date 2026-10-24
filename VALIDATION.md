@@ -1,4 +1,4 @@
-# Windows x64 release validation — 2026-10-22
+# Windows x64 release validation — 2026-10-23
 
 ## Tested local scope
 
@@ -13,7 +13,7 @@ Qt 6.12.0 official MSVC2022 x64 shared SDK, Qwt 6.3.0 pinned source, MSVC 19.44.
 
 ## Project review — 2.5.0 validation
 
-The 22 existing native cases remain regression gates. Twelve additional native project-review cases cover folder/status matching, thresholds and double-precision boundaries, overlapping/global/per-file masks across metrics, profile round trips/rejections, decoder failures, escaped reports and stale-data refusal, approval/addition/restoration, failed preparation, prepared recovery, corrupt backups, stale conflicts, Windows junction refusal and the native GUI workflow. Twenty independent folder CLI cases cover exit codes, profiles, masks, reports, malformed inputs and absence of automatic approval. Workbench smoke tests run at 100/125/150/200% scaling; screenshots are inspected.
+The 22 existing native cases remain regression gates. Thirteen additional native project-review cases cover folder/status matching, thresholds and double-precision boundaries, overlapping/global/per-file masks across metrics, profile round trips/rejections, decoder failures, escaped/thin-image reports and stale-data refusal, approval/addition/restoration, failed preparation, prepared recovery, corrupt backups, stale conflicts, Windows junction refusal and the native GUI workflow. Twenty independent folder CLI cases cover exit codes, profiles, masks, reports, malformed inputs and absence of automatic approval. Workbench smoke tests run at 100/125/150/200% scaling; screenshots are inspected.
 
 Stable publication requires native/CLI/parser checks, AddressSanitizer on application/bundled code, relocated space/Unicode portable tests including the workbench, and exact-downloadable-ZIP deployment on Windows Server 2022/2025. Release notes and release-verification JSON record the final commit, workflow and asset digests. Corresponding application/Qtbase/Qwt sources and notices accompany the binary.
 

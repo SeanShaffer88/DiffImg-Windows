@@ -19,6 +19,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tests'))
 from cli_tests import verify,png
 from folder_tests import verify as verify_folders
+from sign_windows import signature
 
 def modules(pid):
     class Entry(ctypes.Structure):
@@ -71,6 +72,17 @@ def main():
             assert data[pe:pe+4]==b'PE\0\0',binary.name
             assert struct.unpack_from('<H',data,pe+4)[0]==0x8664,('Not AMD64',binary.name)
         result['amd64_pe_files_verified']=len(binaries)
+        if (folder/'signatures.json').exists():
+            expected=json.loads((folder/'signatures.json').read_text())
+            assert hashlib.sha256((folder/'DiffImg-publisher.cer').read_bytes()).hexdigest()==expected['public_certificate_sha256']
+            checked={}
+            for name,identity in expected['files'].items():
+                actual=signature(folder/name)
+                assert actual['thumbprint']==identity['thumbprint']
+                assert actual['status'] not in {'HashMismatch','NotSigned','NotSupported'}
+                checked[name]=actual['status']
+            result['publisher_signature_status']=checked
+            result['self_signed']=expected['self_signed']
         # The test harness is supplemental QA material, not a runtime requirement.
         shutil.copy2(args.test_exe,folder/'comparison-tests.exe')
         shutil.copy2(args.review_test_exe,folder/'review-tests.exe')

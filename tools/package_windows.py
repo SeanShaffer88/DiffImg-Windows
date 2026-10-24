@@ -103,7 +103,8 @@ def main():
     (package/'Try sample.bat').write_text('@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0diffimg.exe" --portable "%~dp0examples\\baseline.png" "%~dp0examples\\current.png"\r\n',encoding='ascii')
     (package/'Start DiffImg.bat').write_text('@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0diffimg.exe" --portable %*\r\n',encoding='ascii')
     if args.sign_thumbprint:
-        subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-File',str(ROOT/'tools/sign_windows.ps1'),'-Folder',str(package),'-Thumbprint',args.sign_thumbprint],check=True)
+        from sign_windows import sign
+        sign(package,args.sign_thumbprint)
     manifest={p.relative_to(package).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(package.rglob('*')) if p.is_file()}
     (package/'SHA256.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     print('Portable folder prepared:',package)

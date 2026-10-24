@@ -355,7 +355,11 @@ Entry compare(Entry e, const Profile& profile, QImage* difference)
 }
 static QString imageData(QImage image)
 {
-    image = image.scaled(1600, 1600, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QSize preview = image.size();
+    preview.scale(1600, 1600, Qt::KeepAspectRatio);
+    preview.setWidth(qMax(1, preview.width()));
+    preview.setHeight(qMax(1, preview.height()));
+    image = image.scaled(preview, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     QByteArray data;
     QBuffer buffer(&data);
     buffer.open(QIODevice::WriteOnly);
@@ -384,7 +388,9 @@ void exportHtml(const QString& file, const QList<Entry>& entries, const Profile&
     for (auto i = counts.begin(); i != counts.end(); ++i)
         html += "<p>" + i.key().toHtmlEscaped() + ": " + QString::number(i.value()) + "</p>";
     int number = 0;
+    qint64 encodedSize = html.toUtf8().size() + 7;
     for (const auto& entry : entries) {
+        const qsizetype sectionStart = html.size();
         require(++number <= 20000, "Too many report entries");
         html += "<section><h2>" + entry.relative.toHtmlEscaped() + " — " + entry.status.toHtmlEscaped()
             + "</h2>";
@@ -397,7 +403,8 @@ void exportHtml(const QString& file, const QList<Entry>& entries, const Profile&
             QImage diff;
             auto fresh = compare(entry, profile, &diff);
             require(fresh.comparable(), "Could not refresh report images");
-            require(fresh.status == entry.status && fresh.pixels == entry.pixels && fresh.maxError == entry.maxError && fresh.meanError == entry.meanError,
+            require(fresh.status == entry.status && fresh.pixels == entry.pixels
+                    && fresh.maxError == entry.maxError && fresh.meanError == entry.meanError,
                 "Comparison profile changed; rescan before reporting");
             for (auto pair : { qMakePair(QString("Baseline"), readImage(entry.left)),
                      qMakePair(QString("Current"), readImage(entry.right)),
@@ -409,7 +416,8 @@ void exportHtml(const QString& file, const QList<Entry>& entries, const Profile&
             require(hashFile(entry.left) == entry.leftHash && hashFile(entry.right) == entry.rightHash,
                 "Inputs changed while exporting the report");
         html += "</section>";
-        require(html.size() < 100000000, "Report exceeds 100 MB; select fewer entries");
+        encodedSize += html.mid(sectionStart).toUtf8().size();
+        require(encodedSize < 100000000, "Report exceeds 100 MB; select fewer entries");
     }
     html += "</html>";
     QFile output(file);
