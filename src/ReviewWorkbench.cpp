@@ -55,10 +55,11 @@ void ReviewCanvas::fit()
 {
     if (m_left.isNull() && m_right.isNull())
         return;
-    QSize s = m_left.isNull() ? m_right.size() : m_left.size();
-    double w = m_mode == 1 ? s.width() * 2.0 + 24 : s.width();
-    m_scale = qMin((width() - 20) / w, (height() - 20) / double(s.height()));
-    m_offset = QPointF((width() - w * m_scale) / 2, (height() - s.height() * m_scale) / 2);
+    QSize size = m_left.isNull() ? m_right.size() : m_left.size();
+    const double viewportWidth = m_mode == 1 ? (width() - 12) / 2.0 : width();
+    m_scale = qMin((viewportWidth - 20) / size.width(), (height() - 20) / double(size.height()));
+    m_offset
+        = QPointF((viewportWidth - size.width() * m_scale) / 2, (height() - size.height() * m_scale) / 2);
     update();
 }
 void ReviewCanvas::actual()
@@ -67,18 +68,21 @@ void ReviewCanvas::actual()
     m_offset = QPointF(10, 10);
     update();
 }
-void ReviewCanvas::focusRegion(QRect r)
+void ReviewCanvas::focusRegion(QRect rect)
 {
-    if (r.isEmpty())
+    if (rect.isEmpty())
         return;
-    m_region = r;
-    m_scale = qMin((width() - 40) / double(r.width()), (height() - 40) / double(r.height()));
+    m_region = rect;
+    const double viewportWidth = m_mode == 1 ? (width() - 12) / 2.0 : width();
+    m_scale = qMin((viewportWidth - 40) / rect.width(), (height() - 40) / double(rect.height()));
     m_scale = qMin(m_scale, 16.0);
-    m_offset = QPointF(width() / 2.0, height() / 2.0) - QPointF(r.center()) * m_scale;
+    m_offset = QPointF(viewportWidth / 2, height() / 2.0) - QPointF(rect.center()) * m_scale;
     update();
 }
 void ReviewCanvas::zoom(double factor, QPointF at)
 {
+    if (m_mode == 1 && at.x() >= (width() - 12) / 2.0 + 12)
+        at.rx() -= (width() - 12) / 2.0 + 12;
     double next = qBound(0.000001, m_scale * factor, 64.0);
     m_offset = at - (at - m_offset) * (next / m_scale);
     m_scale = next;
@@ -86,62 +90,76 @@ void ReviewCanvas::zoom(double factor, QPointF at)
 }
 QPoint ReviewCanvas::pixel(QPointF screen) const
 {
-    QPointF p = (screen - m_offset) / m_scale;
-    int w = (m_left.isNull() ? m_right : m_left).width();
-    if (m_mode == 1 && p.x() >= w + 24)
-        p.rx() -= w + 24;
-    return p.toPoint();
+    const double origin = (width() - 12) / 2.0 + 12;
+    if (m_mode == 1 && screen.x() >= origin)
+        screen.rx() -= origin;
+    return ((screen - m_offset) / m_scale).toPoint();
 }
 void ReviewCanvas::paintEvent(QPaintEvent*)
 {
-    QPainter p(this);
-    p.fillRect(rect(), QColor("#202630"));
+    QPainter painter(this);
+    painter.fillRect(rect(), QColor("#202630"));
     if (m_left.isNull() && m_right.isNull()) {
-        p.setPen(Qt::white);
-        p.drawText(rect(), Qt::AlignCenter, "Select a comparison to preview");
+        painter.setPen(Qt::white);
+        painter.drawText(rect(), Qt::AlignCenter, "Select a comparison to preview");
         return;
     }
-    p.translate(m_offset);
-    p.scale(m_scale, m_scale);
     const auto base = m_left.isNull() ? m_right : m_left;
-    QRect area = base.rect();
+    const QRect area = base.rect();
+    auto decorations = [&] {
+        painter.setPen(QPen(QColor("#fbbf24"), 2 / m_scale, Qt::DashLine));
+        painter.setBrush(QColor(251, 191, 36, 55));
+        for (auto mask : m_masks)
+            painter.drawRect(mask.intersected(area));
+        if (m_drag)
+            painter.drawRect(QRect(m_start, pixel(m_last)).normalized().intersected(area));
+        if (!m_region.isEmpty()) {
+            painter.setPen(QPen(QColor("#4ade80"), 3 / m_scale));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRect(m_region);
+        }
+    };
     if (m_mode == 1) {
-        p.drawImage(0, 0, base);
-        p.drawImage(base.width() + 24, 0, m_right.isNull() ? base : m_right);
-    } else if (m_mode == 2)
-        p.drawImage(0, 0, m_diff.isNull() ? base : m_diff);
+        const double panelWidth = (width() - 12) / 2.0;
+        for (int side = 0; side < 2; ++side) {
+            const double origin = side * (panelWidth + 12);
+            painter.save();
+            painter.setClipRect(QRectF(origin, 0, panelWidth, height()));
+            painter.translate(QPointF(origin, 0) + m_offset);
+            painter.scale(m_scale, m_scale);
+            painter.drawImage(0, 0, side ? (m_right.isNull() ? base : m_right) : base);
+            decorations();
+            painter.restore();
+            painter.fillRect(QRectF(origin, 0, panelWidth, 22), QColor(0, 0, 0, 180));
+            painter.setPen(Qt::white);
+            painter.drawText(QRectF(origin + 5, 0, panelWidth - 10, 22), Qt::AlignLeft | Qt::AlignVCenter,
+                side ? "Current" : "Baseline");
+        }
+        return;
+    }
+    painter.translate(m_offset);
+    painter.scale(m_scale, m_scale);
+    if (m_mode == 2)
+        painter.drawImage(0, 0, m_diff.isNull() ? base : m_diff);
     else {
-        p.drawImage(0, 0, base);
+        painter.drawImage(0, 0, base);
         if (!m_right.isNull()) {
             if (m_mode == 0) {
-                p.save();
-                p.setClipRect(QRect(0, 0, area.width() * m_divider / 100, area.height()));
-                p.drawImage(0, 0, m_right);
-                p.restore();
-                p.setPen(QPen(QColor("#38bdf8"), 2 / m_scale));
-                p.drawLine(area.width() * m_divider / 100, 0, area.width() * m_divider / 100, area.height());
+                painter.save();
+                painter.setClipRect(QRect(0, 0, area.width() * m_divider / 100, area.height()));
+                painter.drawImage(0, 0, m_right);
+                painter.restore();
+                painter.setPen(QPen(QColor("#38bdf8"), 2 / m_scale));
+                painter.drawLine(
+                    area.width() * m_divider / 100, 0, area.width() * m_divider / 100, area.height());
             } else {
-                p.setOpacity(0.5);
-                p.drawImage(0, 0, m_right);
-                p.setOpacity(1);
+                painter.setOpacity(0.5);
+                painter.drawImage(0, 0, m_right);
+                painter.setOpacity(1);
             }
         }
     }
-    p.setPen(QPen(QColor("#fbbf24"), 2 / m_scale, Qt::DashLine));
-    p.setBrush(QColor(251, 191, 36, 55));
-    for (auto mask : m_masks) {
-        p.drawRect(mask.intersected(area));
-        if (m_mode == 1)
-            p.drawRect(mask.intersected(area).translated(base.width() + 24, 0));
-    }
-    if (m_drag) {
-        p.drawRect(QRect(m_start, pixel(m_last)).normalized().intersected(area));
-    }
-    if (!m_region.isEmpty()) {
-        p.setPen(QPen(QColor("#4ade80"), 3 / m_scale));
-        p.setBrush(Qt::NoBrush);
-        p.drawRect(m_region);
-    }
+    decorations();
 }
 void ReviewCanvas::resizeEvent(QResizeEvent*)
 {

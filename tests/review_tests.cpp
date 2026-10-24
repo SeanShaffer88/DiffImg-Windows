@@ -274,6 +274,27 @@ private slots:
             QVERIFY(preview.height() >= 1 && preview.height() <= 1600);
         }
     }
+    void synchronizedViewportsRemainVisible()
+    {
+        ReviewCanvas canvas;
+        canvas.resize(600, 300);
+        QImage baseline(64, 32, QImage::Format_RGB32), current(64, 32, QImage::Format_RGB32);
+        baseline.fill(Qt::black);
+        current.fill(Qt::blue);
+        canvas.images(baseline, current, { }, { });
+        canvas.setMode(1);
+        canvas.show();
+        canvas.actual();
+        QApplication::processEvents();
+        auto pixels = canvas.grab().toImage();
+        QCOMPARE(pixels.pixelColor(11, 28), QColor(Qt::black));
+        QCOMPARE(pixels.pixelColor(317, 28), QColor(Qt::blue));
+        QTest::keyClick(&canvas, Qt::Key_Right);
+        pixels = canvas.grab().toImage();
+        QCOMPARE(pixels.pixelColor(11, 28), QColor(Qt::black));
+        QCOMPARE(pixels.pixelColor(317, 28), QColor(Qt::blue));
+        canvas.close();
+    }
     void workbenchNativeWorkflow()
     {
         Q_INIT_RESOURCE(diffimg);
