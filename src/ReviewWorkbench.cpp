@@ -16,6 +16,7 @@ ReviewCanvas::ReviewCanvas(QWidget* p)
     : QWidget(p)
 {
     setMinimumSize(320, 240);
+    setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     setAccessibleName("Comparison preview");
     setAccessibleDescription(
@@ -93,7 +94,8 @@ QPoint ReviewCanvas::pixel(QPointF screen) const
     const double origin = (width() - 12) / 2.0 + 12;
     if (m_mode == 1 && screen.x() >= origin)
         screen.rx() -= origin;
-    return ((screen - m_offset) / m_scale).toPoint();
+    auto p = (screen - m_offset) / m_scale;
+    return QPoint(int(std::floor(p.x())), int(std::floor(p.y())));
 }
 void ReviewCanvas::paintEvent(QPaintEvent*)
 {
@@ -197,6 +199,23 @@ void ReviewCanvas::mouseMoveEvent(QMouseEvent* e)
         }
     }
     m_last = e->position();
+    auto p = pixel(e->position());
+    if (m_left.rect().contains(p) && m_right.rect().contains(p)) {
+        auto a = m_left.pixelColor(p), b = m_right.pixelColor(p);
+        emit pixelInspected(QString("(%1, %2)  Baseline RGB %3,%4,%5  Current %6,%7,%8  |delta| %9,%10,%11")
+                .arg(p.x())
+                .arg(p.y())
+                .arg(a.red())
+                .arg(a.green())
+                .arg(a.blue())
+                .arg(b.red())
+                .arg(b.green())
+                .arg(b.blue())
+                .arg(abs(a.red() - b.red()))
+                .arg(abs(a.green() - b.green()))
+                .arg(abs(a.blue() - b.blue())));
+    } else
+        emit pixelInspected("Move over an image to inspect normalized RGB pixels.");
     update();
 }
 void ReviewCanvas::mouseReleaseEvent(QMouseEvent* e)
@@ -316,6 +335,14 @@ ReviewWorkbench::ReviewWorkbench(QWidget* parent)
     m_filter->setAccessibleName("Filter comparison status");
     search->addWidget(m_search, 1);
     search->addWidget(m_filter);
+    auto previousFile = new QPushButton("Previous failing file"),
+         nextFile = new QPushButton("Next failing file");
+    previousFile->setObjectName("previousFailingFile");
+    nextFile->setObjectName("nextFailingFile");
+    previousFile->setShortcut(QKeySequence("Shift+F8"));
+    nextFile->setShortcut(QKeySequence("F8"));
+    search->addWidget(previousFile);
+    search->addWidget(nextFile);
     auto split = new QSplitter(Qt::Vertical);
     controls->addWidget(split, 1);
     m_table = new QTableWidget(0, 5);
@@ -364,6 +391,31 @@ ReviewWorkbench::ReviewWorkbench(QWidget* parent)
     m_canvas = new ReviewCanvas;
     m_canvas->setObjectName("reviewCanvas");
     previewLayout->addWidget(m_canvas, 1);
+    auto inspector = new QLabel("Move over an image to inspect normalized RGB pixels.");
+    inspector->setObjectName("pixelInspector");
+    inspector->setWordWrap(true);
+    inspector->setTextFormat(Qt::PlainText);
+    previewLayout->addWidget(inspector);
+    connect(m_canvas, &ReviewCanvas::pixelInspected, inspector, &QLabel::setText);
+    auto navigateFile = [this](int direction) {
+        if (busy() || !m_table->rowCount())
+            return;
+        int start = m_table->currentRow();
+        if (start < 0)
+            start = direction > 0 ? -1 : 0;
+        for (int step = 1; step <= m_table->rowCount(); ++step) {
+            int row = (start + direction * step + m_table->rowCount()) % m_table->rowCount();
+            auto status = m_table->item(row, 1)->text();
+            if (status == "Changed" || status.startsWith("Missing") || status == "Error") {
+                m_table->selectRow(row);
+                m_table->scrollToItem(m_table->item(row, 0));
+                return;
+            }
+        }
+        m_status->setText("No failing files in the current filter.");
+    };
+    connect(previousFile, &QPushButton::clicked, this, [navigateFile] { navigateFile(-1); });
+    connect(nextFile, &QPushButton::clicked, this, [navigateFile] { navigateFile(1); });
     split->addWidget(preview);
     split->setSizes({ 240, 560 });
     auto footer = new QHBoxLayout;
@@ -454,11 +506,27 @@ ReviewWorkbench::ReviewWorkbench(QWidget* parent)
     connect(previous, &QPushButton::clicked, this, [navigate] { navigate(-1); });
     connect(next, &QPushButton::clicked, this, [navigate] { navigate(1); });
     connect(m_export, &QPushButton::clicked, this, [this] {
+        bool ok = false;
+        auto scope = QInputDialog::getItem(this, "Report scope", "Include",
+            { "All results", "Visible results", "Selected results" }, 0, false, &ok);
+        if (!ok)
+            return;
+        QList<Review::Entry> entries;
+        if (scope == "Selected results")
+            entries = selection();
+        else if (scope == "Visible results") {
+            for (int row = 0; row < m_table->rowCount(); ++row)
+                entries.append(m_entries[m_table->item(row, 0)->data(Qt::UserRole).toInt()]);
+        } else
+            entries = m_entries;
+        if (entries.isEmpty()) {
+            m_status->setText("No entries in this report scope.");
+            return;
+        }
         auto path = QFileDialog::getSaveFileName(
             this, "Export a new standalone report", { }, "HTML report (*.html)");
         if (path.isEmpty())
             return;
-        auto entries = m_entries;
         auto profile = m_profile;
         task([path, entries, profile] { Review::exportHtml(path, entries, profile); },
             [this, path] { m_status->setText("Standalone report written: " + path); });

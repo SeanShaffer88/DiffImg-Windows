@@ -17,6 +17,7 @@
 #include <QSet>
 #include <QTextStream>
 #include <QUuid>
+#include <QXmlStreamWriter>
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -429,6 +430,67 @@ void exportHtml(const QString& file, const QList<Entry>& entries, const Profile&
         fail("Could not finish report");
     }
 }
+void exportStructured(const QString& file, const QList<Entry>& entries, const Profile& profile, bool junit)
+{
+    profile.validate();
+    require(entries.size() <= 20000, "Too many report entries");
+    QJsonArray records;
+    int failures = 0, errors = 0;
+    for (const auto& e : entries) {
+        // Re-evaluate before writing: reports must not silently describe stale inputs or settings.
+        auto fresh = compare(e, profile);
+        require(fresh.status == e.status && fresh.leftHash == e.leftHash && fresh.rightHash == e.rightHash
+                && fresh.pixels == e.pixels && fresh.maxError == e.maxError && fresh.meanError == e.meanError,
+            "Inputs or profile changed; rescan before reporting");
+        failures += e.status == "Changed" || e.status.startsWith("Missing");
+        errors += e.status == "Error";
+        records.append(QJsonObject { { "path", e.relative }, { "status", e.status }, { "detail", e.detail },
+            { "changedPixels", e.pixels }, { "maxError", e.maxError }, { "meanError", e.meanError },
+            { "baselineSha256", QString::fromLatin1(e.leftHash) },
+            { "currentSha256", QString::fromLatin1(e.rightHash) } });
+    }
+    QByteArray data;
+    if (junit) {
+        QXmlStreamWriter xml(&data);
+        xml.setAutoFormatting(true);
+        xml.writeStartDocument();
+        xml.writeStartElement("testsuite");
+        xml.writeAttribute("name", "DiffImg");
+        xml.writeAttribute("tests", QString::number(entries.size()));
+        xml.writeAttribute("failures", QString::number(failures));
+        xml.writeAttribute("errors", QString::number(errors));
+        for (const auto& e : entries) {
+            xml.writeStartElement("testcase");
+            xml.writeAttribute("classname", "DiffImg.images");
+            xml.writeAttribute("name", e.relative);
+            if (e.status == "Error" || e.status == "Changed" || e.status.startsWith("Missing")) {
+                xml.writeStartElement(e.status == "Error" ? "error" : "failure");
+                xml.writeAttribute("message", e.status);
+                xml.writeCharacters(e.detail
+                    + QString(" Changed pixels: %1; max: %2; mean: %3")
+                        .arg(e.pixels)
+                        .arg(e.maxError)
+                        .arg(e.meanError, 0, 'g', 17));
+                xml.writeEndElement();
+            }
+            xml.writeEndElement();
+        }
+        xml.writeEndElement();
+        xml.writeEndDocument();
+    } else
+        data = QJsonDocument(
+            QJsonObject { { "schema", 1 }, { "profile", profile.json() }, { "tests", entries.size() },
+                { "failures", failures }, { "errors", errors }, { "entries", records } })
+                   .toJson();
+    require(data.size() <= 100000000, "Report exceeds 100 MB");
+    QFile output(file);
+    require(output.open(QIODevice::WriteOnly | QIODevice::NewOnly), "Could not create a new report file");
+    if (output.write(data) != data.size()) {
+        output.close();
+        QFile::remove(file);
+        fail("Could not finish report");
+    }
+}
 static QByteArray bytes(const QString& path)
 {
     QFile f(path);
@@ -566,12 +628,13 @@ void restore(const QString& baseline, const QString& manifest)
 int batch(const QStringList& args)
 {
     try {
-        QString baseline, current, profileFile, report;
+        QString baseline, current, profileFile, report, jsonReport, junitReport;
         for (int i = 1; i < args.size(); ++i) {
             auto arg = args[i];
             if (arg == "--folder-batch")
                 continue;
-            if (arg == "--baseline" || arg == "--current" || arg == "--profile" || arg == "--report") {
+            if (arg == "--baseline" || arg == "--current" || arg == "--profile" || arg == "--report"
+                || arg == "--json-report" || arg == "--junit-report") {
                 require(i + 1 < args.size() && !args[i + 1].startsWith("--"), "Missing folder option value");
                 QString value = args[++i];
                 if (arg == "--baseline")
@@ -580,6 +643,10 @@ int batch(const QStringList& args)
                     current = value;
                 else if (arg == "--profile")
                     profileFile = value;
+                else if (arg == "--json-report")
+                    jsonReport = value;
+                else if (arg == "--junit-report")
+                    junitReport = value;
                 else
                     report = value;
             } else
@@ -598,6 +665,18 @@ int batch(const QStringList& args)
             error |= e.status == "Error";
             out << e.status << "\t" << e.relative << "\t" << e.pixels << Qt::endl;
         }
+        for (const auto& output : { report, jsonReport, junitReport }) {
+            if (output.isEmpty())
+                continue;
+            auto path = QFileInfo(output).absoluteFilePath();
+            require(!inside(path, rootPath(baseline)) && !inside(path, rootPath(current)),
+                "Save reports outside input folders");
+            require(!QFileInfo::exists(output), "Report output already exists; choose a new filename");
+        }
+        if (!jsonReport.isEmpty())
+            exportStructured(jsonReport, entries, p);
+        if (!junitReport.isEmpty())
+            exportStructured(junitReport, entries, p, true);
         if (!report.isEmpty()) {
             QString canonical = QFileInfo(report).absoluteFilePath();
             require(!inside(canonical, rootPath(baseline)) && !inside(canonical, rootPath(current)),

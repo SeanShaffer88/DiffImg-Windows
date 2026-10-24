@@ -78,3 +78,9 @@ Folder exit codes: 0 all pass, 1 changed/missing images, 2 invalid inputs/profil
 Restore backup accepts that baseline folder's transaction manifest, verifies originals and refuses conflicting subsequent edits. Newly approved additions are removed on restore. Prepared manifests permit recovery from interrupted approval; already-restored original bytes are skipped on retry. Keep backups until satisfied. This is per-file recovery, not a filesystem-wide transaction or a lock against other editors; storage/controller power-loss behavior is not certified. Do not edit manifests/backups manually.
 
 **Windows polish/signing:** both executables embed the original DiffImg icon and 2.5.0 product/version metadata. The published package uses the existing SeanShaffer88 self-signed Authenticode certificate. This provides an embedded identity/integrity check, not public Windows publisher trust or SmartScreen reputation. Public certificate/SIGNING.txt accompany signed packages; no private key or trust-store changes are included. CI rebuilds remain unsigned. Packaging can use an existing certificate via `--sign-thumbprint THUMBPRINT`.
+
+## Review productivity additions (development)
+
+F8 / Shift+F8 move through changed, missing or error files in the current sorted/filtered table. Hover over the preview for normalized baseline/current RGB and absolute channel deltas. Pixel coordinates use the image cell under the pointer. HTML export offers all, visible or selected results.
+
+Folder mode also accepts `--json-report NEW.json` and `--junit-report NEW.xml`, optionally alongside HTML. JUnit maps changed/missing files to failures, decoder errors to errors, and accepted/identical images to passes. JSON schema 1 includes profile, relative paths, SHA256 identities and statistics, without absolute input paths. Reports refuse existing outputs and stale inputs/settings. Reports describe the bounded 8-bit RGB comparison, not color-managed/HDR equivalence.

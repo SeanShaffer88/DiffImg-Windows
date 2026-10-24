@@ -35,6 +35,7 @@ public:
 signals:
     void maskAdded(QRect);
     void dividerChanged(int);
+    void pixelInspected(QString);
 
 protected:
     void paintEvent(QPaintEvent*) override;

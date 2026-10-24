@@ -26,6 +26,61 @@ class ReviewTests : public QObject {
         return p;
     }
 private slots:
+    void structuredReports()
+    {
+        auto a = folder("structured-a"), b = folder("structured-b");
+        image(a, "changed&.png");
+        image(b, "changed&.png", qRgb(2, 4, 6));
+        image(b, "new.png");
+        image(a, "same.png");
+        image(b, "same.png");
+        Profile p;
+        auto entries = discover(a, b);
+        for (auto& e : entries)
+            e = compare(e, p);
+        auto json = temp.filePath("results.json"), xml = temp.filePath("results.xml");
+        exportStructured(json, entries, p);
+        exportStructured(xml, entries, p, true);
+        QFile f(json);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        auto data = f.readAll();
+        auto o = QJsonDocument::fromJson(data).object();
+        QCOMPARE(o["tests"].toInt(), 3);
+        QCOMPARE(o["failures"].toInt(), 2);
+        QVERIFY(!data.contains(a.toUtf8()));
+        QFile x(xml);
+        QVERIFY(x.open(QIODevice::ReadOnly));
+        auto bytes = x.readAll();
+        QVERIFY(bytes.contains("changed&amp;.png"));
+        QXmlStreamReader reader(bytes);
+        while (!reader.atEnd())
+            reader.readNext();
+        QVERIFY(!reader.hasError());
+        QVERIFY_EXCEPTION_THROWN(exportStructured(json, entries, p), std::runtime_error);
+        image(b, "changed&.png", qRgb(8, 8, 8));
+        auto stale = temp.filePath("stale.json");
+        QVERIFY_EXCEPTION_THROWN(exportStructured(stale, entries, p), std::runtime_error);
+        QVERIFY(!QFileInfo::exists(stale));
+    }
+    void pixelInspector()
+    {
+        ReviewCanvas canvas;
+        canvas.resize(640, 320);
+        QImage a(64, 32, QImage::Format_RGB32), b(a.size(), a.format());
+        a.fill(qRgb(2, 4, 6));
+        b.fill(qRgb(9, 8, 7));
+        canvas.images(a, b, { }, { });
+        canvas.actual();
+        canvas.show();
+        QSignalSpy spy(&canvas, &ReviewCanvas::pixelInspected);
+        QApplication::processEvents();
+        canvas.actual();
+        QMouseEvent move(
+            QEvent::MouseMove, QPointF(20, 20), QPointF(20, 20), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&canvas, &move);
+        QTRY_VERIFY(!spy.isEmpty());
+        QVERIFY(spy.last().first().toString().contains("|delta| 7,4,1"));
+    }
     void discoveryAndThresholds()
     {
         auto a = folder("scan-a"), b = folder("scan-b");
@@ -312,6 +367,11 @@ private slots:
         auto table = window.findChild<QTableWidget*>("comparisonResults");
         QVERIFY(table);
         QCOMPARE(table->rowCount(), 2);
+        auto failing = window.findChild<QPushButton*>("nextFailingFile");
+        QVERIFY(failing);
+        failing->click();
+        QTRY_VERIFY_WITH_TIMEOUT(!window.busy(), 15000);
+        QCOMPARE(table->item(table->currentRow(), 1)->text(), QString("Changed"));
         table->selectRow(0);
         QTRY_VERIFY_WITH_TIMEOUT(!window.busy(), 15000);
         auto canvas = window.findChild<ReviewCanvas*>("reviewCanvas");

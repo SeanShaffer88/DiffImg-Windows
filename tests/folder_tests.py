@@ -1,5 +1,6 @@
 """Independent PNG/CLI integration cases for project review (no approval writes in CI mode)."""
 import argparse,json,os,subprocess,tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from cli_tests import png
 
@@ -17,7 +18,14 @@ def verify(executable,output=None):
         case('strict changed folders',base,1)
         report=root/'report.html';case('standalone HTML',base+['--report',report],1)
         text=report.read_text(encoding='utf-8');assert 'data:image/png;base64,' in text and 'changed.png' in text
-        case('existing report refused',base+['--report',report],2)
+        jr=root/'results.json'; xr=root/'results.xml'
+        case('structured reports',base+['--json-report',jr,'--junit-report',xr],1)
+        data=json.loads(jr.read_text());assert data['tests']==2 and data['failures']==1 and data['errors']==0
+        suite=ET.parse(xr).getroot();assert suite.attrib['failures']=='1' and len(suite.findall('testcase'))==2
+        assert str(a) not in jr.read_text()
+        case('existing JSON refused',base+['--json-report',jr],2)
+        case('report inside input refused',base+['--junit-report',a/'bad.xml'],2)
+        case('existing report refused' ,base+['--report',report],2)
         case('same folder refused',['--folder-batch','--baseline',a,'--current',a],2)
         case('unknown folder option',base+['--unknown'],2)
         case('no auto approval option',base+['--approve'],2)

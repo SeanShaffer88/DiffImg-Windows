@@ -37,6 +37,7 @@ QImage readImage(const QString&);
 QList<Entry> discover(
     const QString& baseline, const QString& current, const std::atomic_bool* cancel = nullptr);
 Entry compare(Entry, const Profile&, QImage* difference = nullptr);
+void exportStructured(const QString& newFile, const QList<Entry>&, const Profile&, bool junit = false);
 void exportHtml(const QString& newFile, const QList<Entry>&, const Profile&);
 QString approve(const QString& baseline, const QString& current, const QList<Entry>& selected);
 void restore(const QString& baseline, const QString& manifest);

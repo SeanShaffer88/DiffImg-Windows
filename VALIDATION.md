@@ -24,3 +24,8 @@ Unsigned application EXEs are compared across independent build directories befo
 Vendor Qt/Qwt DLLs are not sanitizer-instrumented. Hosted Windows Server images and local Windows desktop build 26300 are exercised environments, not every consumer configuration or pristine consumer VM. x86/ARM64, HDR/profile equivalence, animated frames, exhaustive codec fuzzing, accessibility certification and all perceptual settings remain outside scope. Qt 6.12.0/MSVC x64 and the equal-dimension, 8-bit RGB-over-white contract remain. Reports use scaled previews; region navigation uses approximate 32px tiles; masks use fixed pixel coordinates.
 
 Baseline operations use hash checks, an operation lock, verified originals and per-file atomic replacement/recovery. They are not filesystem-wide atomic transactions or a concurrency guarantee against unrelated editors. Prepared recovery, junctions and conflict/error cases are tested; power-loss/storage-controller behavior is not certified. Backups require space and remain until the user removes them. See README-WINDOWS.md for exact recovery and signing behavior.
+
+## Post-2.5.0 development: review productivity
+
+Windows x64 local build and CTest passed: 24 legacy + 18 project-review XML pass records (38 unique cases excluding setup/cleanup). All 31 single-image and 23 folder CLI cases passed. New coverage checks JSON/JUnit totals, XML escaping, stale-output refusal, no overwrite, input-folder refusal, pixel inspection and failing-file navigation. These are development changes; the published v2.5.0 portable assets are unchanged. Fresh hosted runner and ASan checks are pending the pushed workflow.
+
