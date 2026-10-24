@@ -11,25 +11,16 @@ Qt 6.12.0 official MSVC2022 x64 shared SDK, Qwt 6.3.0 pinned source, MSVC 19.44.
 - Portable tests verify the SHA256 manifest and AMD64 PE headers, relocate to space-containing and Unicode paths, remove Qt/QML environment and restrict PATH to System32, run the full QtTest and CLI suites, and launch the GUI. Loaded Qt, Qwt, platform and VC runtime modules must match package files by file identity. Supplemental QtTest runtime is used only in the temporary QA folder.
 - Source archive digest matches the upstream Qtbase checksum. Qt 6 license texts and bundled third-party notices accompany the portable folder; complete corresponding source archives accompany release assets.
 
-## Independent rebuild
+## Project review — 2.5.0 validation
 
-Two independent build directories produced identical application bytes:
+The 22 existing native cases remain regression gates. Twelve additional native project-review cases cover folder/status matching, thresholds and double-precision boundaries, overlapping/global/per-file masks across metrics, profile round trips/rejections, decoder failures, escaped reports and stale-data refusal, approval/addition/restoration, failed preparation, prepared recovery, corrupt backups, stale conflicts, Windows junction refusal and the native GUI workflow. Twenty independent folder CLI cases cover exit codes, profiles, masks, reports, malformed inputs and absence of automatic approval. Workbench smoke tests run at 100/125/150/200% scaling; screenshots are inspected.
 
-| File | SHA256 |
-|---|---|
-| diffimg.exe | 5d54637e893efeec788522702bedcaf3afff92c7aed71384303953f2497dbece |
-| diffimg-cli.exe | 9c9089b49c1d045ecca895140a320290137db88540c8ab5ec05b46ee5fc5efb1 |
+Stable publication requires native/CLI/parser checks, AddressSanitizer on application/bundled code, relocated space/Unicode portable tests including the workbench, and exact-downloadable-ZIP deployment on Windows Server 2022/2025. Release notes and release-verification JSON record the final commit, workflow and asset digests. Corresponding application/Qtbase/Qwt sources and notices accompany the binary.
 
-Qwt DLLs rebuild and pass tests but differ with build path (observed MSVC anonymous-namespace type names). The release pins its actual DLL digest. Whole-package, cross-machine and cross-toolchain byte identity is not claimed.
-
-## Stable publication gates
-
-The Windows workflow must build the release source, run native/CLI/robustness checks, and pass AddressSanitizer checks for DiffImg and bundled comparison/property-browser code. Vendor Qt/Qwt DLLs are not sanitizer-instrumented. This local MSVC installation lacks the x64 sanitizer runtime; sanitizer execution is performed on the hosted build runner. The workflow also verifies a rebuilt portable package on separate Windows Server 2022 and 2025 runners without installing a Qt SDK in the deployment jobs.
-
-Before stable promotion, the exact downloadable portable ZIP is independently SHA256-checked and tested on both hosted Windows images. Release notes link the exact source commit, successful run and asset digests. A prerelease candidate is not promoted while these gates fail or remain pending.
+Unsigned application EXEs are compared across independent build directories before signing. Qwt DLLs remain path-dependent; whole-package/cross-toolchain byte identity is not claimed. Authenticode signatures differ from unsigned reproducible-build bytes. Icon/version metadata and signature identity are checked separately. Self-signed signing is not public Windows trust; no private keys or trust-store changes are packaged.
 
 ## Practical limits
 
-Hosted runners are fresh separate Windows environments, not pristine consumer Windows VMs. Local native desktop validation and hosted Server tests do not establish every Windows 10/11 configuration. Intended platform: Windows 10 1809+ / Windows 11 x64, consistent with Qt 6.12's supported configurations; Windows desktop build 26300 and the hosted Server images are the exercised environments. x86, ARM64, other OSes, HDR/profile equivalence, all perceptual parameter combinations, animated GIF frames and comprehensive adversarial codec testing remain outside scope. The application is unsigned. The package needs a writable folder for adjacent settings.
+Vendor Qt/Qwt DLLs are not sanitizer-instrumented. Hosted Windows Server images and local Windows desktop build 26300 are exercised environments, not every consumer configuration or pristine consumer VM. x86/ARM64, HDR/profile equivalence, animated frames, exhaustive codec fuzzing, accessibility certification and all perceptual settings remain outside scope. Qt 6.12.0/MSVC x64 and the equal-dimension, 8-bit RGB-over-white contract remain. Reports use scaled previews; region navigation uses approximate 32px tiles; masks use fixed pixel coordinates.
 
-The comparison contract is equal dimensions and 8-bit RGB composited over white. Downsample must be 0; legacy nonzero values were silently ignored. Qt 6 porting does not establish codec security. Continue tracking toolkit updates. Original upstream notices and harmless legacy diagnostics remain; this is not a claim that the entire codebase is warning-free or comprehensively reviewed.
+Baseline operations use hash checks, an operation lock, verified originals and per-file atomic replacement/recovery. They are not filesystem-wide atomic transactions or a concurrency guarantee against unrelated editors. Prepared recovery, junctions and conflict/error cases are tested; power-loss/storage-controller behavior is not certified. Backups require space and remain until the user removes them. See README-WINDOWS.md for exact recovery and signing behavior.

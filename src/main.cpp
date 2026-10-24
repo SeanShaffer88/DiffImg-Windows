@@ -20,6 +20,7 @@
 
 #include <QApplication>
 #include "ReviewProject.h"
+#include "ReviewWorkbench.h"
 //#include <QPlastiqueStyle>
 #include <QMessageBox>
 
@@ -381,6 +382,18 @@ int main(int argc, char *argv[])
     //QApplication::setStyle(new QPlastiqueStyle);
 #endif
 
+    if (app.arguments().contains("--project-review")) {
+        const auto arguments = app.arguments();
+        if (arguments.size() != 2 && arguments.size() != 4) return EXIT_ERROR;
+        if (arguments.at(1) != "--project-review") return EXIT_ERROR;
+        ReviewWorkbench workbench;
+        if (arguments.size() == 4) {
+            workbench.setFolders(arguments.at(2), arguments.at(3));
+            workbench.startComparison();
+        }
+        workbench.exec();
+        return EXIT_OK;
+    }
     if (app.arguments().contains("--folder-batch")) return Review::batch(app.arguments());
 
     // check for special argument

@@ -1,26 +1,295 @@
-#include <QtTest>
-#include <QtWidgets>
+#include "AppSettings.h"
 #include "ReviewProject.h"
 #include "ReviewWorkbench.h"
-#include "AppSettings.h"
+#include <QtTest>
+#include <QtWidgets>
+#include <cmath>
 #include <stdexcept>
 using namespace Review;
-class ReviewTests:public QObject {
+class ReviewTests : public QObject {
     Q_OBJECT
     QTemporaryDir temp;
-    QString folder(QString name){QString p=temp.filePath(name);QDir().mkpath(p);return p;}
-    QString image(QString dir,QString name,QRgb color= qRgb(0,0,0)){QString p=QDir(dir).filePath(name);QDir().mkpath(QFileInfo(p).path());QImage i(64,32,QImage::Format_RGB32);i.fill(color);if(!i.save(p))qFatal("Fixture save failed");return p;}
+    QString folder(QString name)
+    {
+        QString p = temp.filePath(name);
+        QDir().mkpath(p);
+        return p;
+    }
+    QString image(QString dir, QString name, QRgb color = qRgb(0, 0, 0))
+    {
+        QString p = QDir(dir).filePath(name);
+        QDir().mkpath(QFileInfo(p).path());
+        QImage i(64, 32, QImage::Format_RGB32);
+        i.fill(color);
+        if (!i.save(p))
+            qFatal("Fixture save failed");
+        return p;
+    }
 private slots:
-    void discoveryAndThresholds(){auto a=folder("scan-a"),b=folder("scan-b");image(a,"nested/same.png");image(b,"nested/same.png");image(a,"changed.png");image(b,"changed.png",qRgb(90,60,30));image(a,"gone.png");image(b,"new.png");auto entries=discover(a,b);QCOMPARE(entries.size(),4);Profile p;QMap<QString,Entry> results;for(auto e:entries){e=compare(e,p);results[e.relative]=e;}QCOMPARE(results["nested/same.png"].status,QString("Identical"));QCOMPARE(results["changed.png"].pixels,2048);QCOMPARE(results["changed.png"].meanError,60.0);QCOMPARE(results["gone.png"].status,QString("Missing current"));QCOMPARE(results["new.png"].status,QString("Missing baseline"));p.allowedPixels=2048;p.maxError=90;p.meanError=60;QCOMPARE(compare(results["changed.png"],p).status,QString("Accepted"));p.meanError=59.9;QCOMPARE(compare(results["changed.png"],p).status,QString("Changed"));QVERIFY_EXCEPTION_THROWN(discover(a,a),std::runtime_error);QVERIFY_EXCEPTION_THROWN(discover(a,folder("scan-a/inside")),std::runtime_error);}
-    void maskSemanticsAcrossMetrics(){auto a=folder("mask-a"),b=folder("mask-b");image(a,"a.png");image(b,"a.png",qRgb(255,255,255));auto e=discover(a,b).first();for(const auto &metric:{"PerChannelMetric","PerChannelMeanMetric","PerLuminanceMetric","PerceptualMetric"}){Profile p;p.metric=metric;p.masks["*"].append(QRect(0,0,64,32));QCOMPARE(compare(e,p).status,QString("Identical"));}Profile p;p.masks["a.png"].append(QRect(0,0,32,32));p.masks["*"].append(QRect(0,0,16,32));auto result=compare(e,p);QCOMPARE(result.pixels,1024);QCOMPARE(result.meanError,255.0);QCOMPARE(result.regions.size(),1);QCOMPARE(result.regions.first(),QRect(32,0,32,32));}
-    void profileRoundTripAndValidation(){Profile p;p.name="<script>profile & Ω</script>";p.metric="PerceptualMetric";p.parameters={{"Gamma",2.2},{"FOV",89.9}};p.masks["nested/test.png"]={QRect(1,2,3,4)};auto path=temp.filePath("profile.json");p.save(path);QCOMPARE(Profile::load(path).json(),p.json());auto o=p.json();o["allowedPixels"]=-1;QVERIFY_EXCEPTION_THROWN(Profile::fromJson(o),std::runtime_error);o=p.json();o["metric"]="unknown";QVERIFY_EXCEPTION_THROWN(Profile::fromJson(o),std::runtime_error);o=p.json();o["extra"]=true;QVERIFY_EXCEPTION_THROWN(Profile::fromJson(o),std::runtime_error);p.masks["../escape.png"]={QRect(0,0,1,1)};QVERIFY_EXCEPTION_THROWN(p.validate(),std::runtime_error);}
-    void invalidAndDimensionFailures(){auto a=folder("bad-a"),b=folder("bad-b");image(a,"bad.png");QFile bad(QDir(b).filePath("bad.png"));QVERIFY(bad.open(QIODevice::WriteOnly));bad.write("bad image");bad.close();auto e=compare(discover(a,b).first(),Profile());QCOMPARE(e.status,QString("Error"));QVERIFY(!e.detail.isEmpty());QVERIFY_EXCEPTION_THROWN(approve(a,b,{e}),std::runtime_error);}
-    void standaloneReportAndStaleProtection(){auto a=folder("report-a"),b=folder("report-b");image(a,"a&quote'.png");image(b,"a&quote'.png",qRgb(1,2,3));Profile p;p.name="<script>alert(1)</script>";auto e=compare(discover(a,b).first(),p);auto path=temp.filePath("report.html");exportHtml(path,{e},p);QFile f(path);QVERIFY(f.open(QIODevice::ReadOnly));auto html=f.readAll();QVERIFY(html.contains("a&amp;quote'"));QVERIFY(html.contains("&lt;script&gt;"));QVERIFY(!html.contains("<script>"));QVERIFY(html.contains("data:image/png;base64,"));QVERIFY(!html.contains(a.toUtf8()));QVERIFY_EXCEPTION_THROWN(exportHtml(path,{e},p),std::runtime_error);image(b,"a&quote'.png",qRgb(4,5,6));QVERIFY_EXCEPTION_THROWN(exportHtml(temp.filePath("stale.html"),{e},p),std::runtime_error);QVERIFY(!QFileInfo::exists(temp.filePath("stale.html")));}
-    void approvalAndRestoreIncludingAddition(){auto a=folder("approve-a"),b=folder("approve-b");auto original=image(a,"nested/a.png");auto old=hashFile(original);image(b,"nested/a.png",qRgb(30,40,50));image(b,"new.png",qRgb(60,70,80));auto list=discover(a,b);for(auto &e:list)e=compare(e,Profile());auto manifest=approve(a,b,list);QCOMPARE(hashFile(original),hashFile(QDir(b).filePath("nested/a.png")));QVERIFY(QFileInfo::exists(QDir(a).filePath("new.png")));QVERIFY(QFileInfo::exists(manifest));restore(a,manifest);QCOMPARE(hashFile(original),old);QVERIFY(!QFileInfo::exists(QDir(a).filePath("new.png")));QVERIFY_EXCEPTION_THROWN(restore(a,manifest),std::runtime_error);QCOMPARE(discover(a,b).size(),2);}
-    void staleApprovalsAndRestoreConflicts(){auto a=folder("stale-a"),b=folder("stale-b");auto original=image(a,"a.png");auto old=hashFile(original);image(b,"a.png",qRgb(80,80,80));auto e=compare(discover(a,b).first(),Profile());image(b,"a.png",qRgb(90,90,90));QVERIFY_EXCEPTION_THROWN(approve(a,b,{e}),std::runtime_error);QCOMPARE(hashFile(original),old);e=compare(discover(a,b).first(),Profile());auto manifest=approve(a,b,{e});image(a,"a.png",qRgb(100,100,100));auto modified=hashFile(original);QVERIFY_EXCEPTION_THROWN(restore(a,manifest),std::runtime_error);QCOMPARE(hashFile(original),modified);}
-    void prepareFailureDoesNotMutateBaseline(){auto a=folder("prepare-a"),b=folder("prepare-b");auto original=image(a,"a.png");image(b,"a.png",qRgb(1,1,1));auto old=hashFile(original);auto e=compare(discover(a,b).first(),Profile());auto bad=e;bad.relative="../escape.png";QVERIFY_EXCEPTION_THROWN(approve(a,b,{e,bad}),std::runtime_error);QCOMPARE(hashFile(original),old);}
-    void preparedRecoveryAndCorruptBackup(){auto a=folder("recover-a"),b=folder("recover-b");auto original=image(a,"a.png");auto before=hashFile(original);image(b,"a.png",qRgb(30,40,50));auto e=compare(discover(a,b).first(),Profile());auto manifest=approve(a,b,{e});QFile f(manifest);QVERIFY(f.open(QIODevice::ReadOnly));auto o=QJsonDocument::fromJson(f.readAll()).object();f.close();o["state"]="prepared";QVERIFY(f.open(QIODevice::WriteOnly|QIODevice::Truncate));f.write(QJsonDocument(o).toJson());f.close();restore(a,manifest);QCOMPARE(hashFile(original),before);e=compare(discover(a,b).first(),Profile());manifest=approve(a,b,{e});QFile backup(QFileInfo(manifest).path()+"/0.original");QVERIFY(backup.open(QIODevice::WriteOnly|QIODevice::Truncate));backup.write("corrupt");backup.close();QVERIFY_EXCEPTION_THROWN(restore(a,manifest),std::runtime_error);}
-    void workbenchNativeWorkflow(){Q_INIT_RESOURCE(diffimg);auto a=folder("gui-a"),b=folder("gui-b");image(a,"same.png");image(b,"same.png");image(a,"changed.png");image(b,"changed.png",qRgb(50,100,200));ReviewWorkbench window;window.setFolders(a,b);window.show();window.startComparison();QTRY_VERIFY_WITH_TIMEOUT(!window.busy(),15000);QCOMPARE(window.results().size(),2);auto table=window.findChild<QTableWidget*>("comparisonResults");QVERIFY(table);QCOMPARE(table->rowCount(),2);table->selectRow(0);QTRY_VERIFY_WITH_TIMEOUT(!window.busy(),15000);auto canvas=window.findChild<ReviewCanvas*>("reviewCanvas");QVERIFY(canvas);QCOMPARE(canvas->imageSize(),QSize(64,32));canvas->setMode(1);canvas->actual();canvas->setMode(0);canvas->setDivider(25);QCOMPARE(canvas->divider(),25);canvas->setMaskEditing(true);canvas->actual();QTest::mousePress(canvas,Qt::LeftButton,Qt::NoModifier,QPoint(12,12));QTest::mouseMove(canvas,QPoint(20,20));QTest::mouseRelease(canvas,Qt::LeftButton,Qt::NoModifier,QPoint(20,20));auto exportButton=window.findChild<QPushButton*>("exportReport");QVERIFY(!exportButton->isEnabled());window.startComparison();QTRY_VERIFY_WITH_TIMEOUT(!window.busy(),15000);QVERIFY(exportButton->isEnabled());table->selectRow(0);QTRY_VERIFY_WITH_TIMEOUT(!window.busy(),15000);canvas->setMaskEditing(false);canvas->fit();QVERIFY(window.grab().save("workbench-smoke.png"));window.close();}
+    void discoveryAndThresholds()
+    {
+        auto a = folder("scan-a"), b = folder("scan-b");
+        image(a, "nested/same.png");
+        image(b, "nested/same.png");
+        image(a, "changed.png");
+        image(b, "changed.png", qRgb(90, 60, 30));
+        image(a, "gone.png");
+        image(b, "new.png");
+        auto entries = discover(a, b);
+        QCOMPARE(entries.size(), 4);
+        Profile p;
+        QMap<QString, Entry> results;
+        for (auto e : entries) {
+            e = compare(e, p);
+            results[e.relative] = e;
+        }
+        QCOMPARE(results["nested/same.png"].status, QString("Identical"));
+        QCOMPARE(results["changed.png"].pixels, 2048);
+        QCOMPARE(results["changed.png"].meanError, 60.0);
+        QCOMPARE(results["gone.png"].status, QString("Missing current"));
+        QCOMPARE(results["new.png"].status, QString("Missing baseline"));
+        p.allowedPixels = 2048;
+        p.maxError = 90;
+        p.meanError = 60;
+        QCOMPARE(compare(results["changed.png"], p).status, QString("Accepted"));
+        p.meanError = 59.9;
+        QCOMPARE(compare(results["changed.png"], p).status, QString("Changed"));
+        QVERIFY_EXCEPTION_THROWN(discover(a, a), std::runtime_error);
+        QVERIFY_EXCEPTION_THROWN(discover(a, folder("scan-a/inside")), std::runtime_error);
+    }
+    void maskSemanticsAcrossMetrics()
+    {
+        auto a = folder("mask-a"), b = folder("mask-b");
+        image(a, "a.png");
+        image(b, "a.png", qRgb(255, 255, 255));
+        auto e = discover(a, b).first();
+        for (const auto& metric :
+            { "PerChannelMetric", "PerChannelMeanMetric", "PerLuminanceMetric", "PerceptualMetric" }) {
+            Profile p;
+            p.metric = metric;
+            p.masks["*"].append(QRect(0, 0, 64, 32));
+            QCOMPARE(compare(e, p).status, QString("Identical"));
+        }
+        Profile p;
+        p.masks["a.png"].append(QRect(0, 0, 32, 32));
+        p.masks["*"].append(QRect(0, 0, 16, 32));
+        auto result = compare(e, p);
+        QCOMPARE(result.pixels, 1024);
+        QCOMPARE(result.meanError, 255.0);
+        QCOMPARE(result.regions.size(), 1);
+        QCOMPARE(result.regions.first(), QRect(32, 0, 32, 32));
+    }
+    void profileRoundTripAndValidation()
+    {
+        Profile p;
+        p.name = "<script>profile & Ω</script>";
+        p.metric = "PerceptualMetric";
+        p.parameters = { { "Gamma", 2.2 }, { "FOV", 89.9 } };
+        p.masks["nested/test.png"] = { QRect(1, 2, 3, 4) };
+        auto path = temp.filePath("profile.json");
+        p.save(path);
+        QCOMPARE(Profile::load(path).json(), p.json());
+        auto o = p.json();
+        o["allowedPixels"] = -1;
+        QVERIFY_EXCEPTION_THROWN(Profile::fromJson(o), std::runtime_error);
+        o = p.json();
+        o["metric"] = "unknown";
+        QVERIFY_EXCEPTION_THROWN(Profile::fromJson(o), std::runtime_error);
+        o = p.json();
+        o["extra"] = true;
+        QVERIFY_EXCEPTION_THROWN(Profile::fromJson(o), std::runtime_error);
+        p.masks["../escape.png"] = { QRect(0, 0, 1, 1) };
+        QVERIFY_EXCEPTION_THROWN(p.validate(), std::runtime_error);
+    }
+    void invalidAndDimensionFailures()
+    {
+        auto a = folder("bad-a"), b = folder("bad-b");
+        image(a, "bad.png");
+        QFile bad(QDir(b).filePath("bad.png"));
+        QVERIFY(bad.open(QIODevice::WriteOnly));
+        bad.write("bad image");
+        bad.close();
+        auto e = compare(discover(a, b).first(), Profile());
+        QCOMPARE(e.status, QString("Error"));
+        QVERIFY(!e.detail.isEmpty());
+        QVERIFY_EXCEPTION_THROWN(approve(a, b, { e }), std::runtime_error);
+    }
+    void standaloneReportAndStaleProtection()
+    {
+        auto a = folder("report-a"), b = folder("report-b");
+        image(a, "a&quote'.png");
+        image(b, "a&quote'.png", qRgb(1, 2, 3));
+        Profile p;
+        p.name = "<script>alert(1)</script>";
+        auto e = compare(discover(a, b).first(), p);
+        auto path = temp.filePath("report.html");
+        exportHtml(path, { e }, p);
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        auto html = f.readAll();
+        QVERIFY(html.contains("a&amp;quote'"));
+        QVERIFY(html.contains("&lt;script&gt;"));
+        QVERIFY(!html.contains("<script>"));
+        QVERIFY(html.contains("data:image/png;base64,"));
+        QVERIFY(!html.contains(a.toUtf8()));
+        QVERIFY_EXCEPTION_THROWN(exportHtml(path, { e }, p), std::runtime_error);
+        image(b, "a&quote'.png", qRgb(4, 5, 6));
+        QVERIFY_EXCEPTION_THROWN(exportHtml(temp.filePath("stale.html"), { e }, p), std::runtime_error);
+        QVERIFY(!QFileInfo::exists(temp.filePath("stale.html")));
+    }
+    void approvalAndRestoreIncludingAddition()
+    {
+        auto a = folder("approve-a"), b = folder("approve-b");
+        auto original = image(a, "nested/a.png");
+        auto old = hashFile(original);
+        image(b, "nested/a.png", qRgb(30, 40, 50));
+        image(b, "new.png", qRgb(60, 70, 80));
+        auto list = discover(a, b);
+        for (auto& e : list)
+            e = compare(e, Profile());
+        auto manifest = approve(a, b, list);
+        QCOMPARE(hashFile(original), hashFile(QDir(b).filePath("nested/a.png")));
+        QVERIFY(QFileInfo::exists(QDir(a).filePath("new.png")));
+        QVERIFY(QFileInfo::exists(manifest));
+        restore(a, manifest);
+        QCOMPARE(hashFile(original), old);
+        QVERIFY(!QFileInfo::exists(QDir(a).filePath("new.png")));
+        QVERIFY_EXCEPTION_THROWN(restore(a, manifest), std::runtime_error);
+        QCOMPARE(discover(a, b).size(), 2);
+    }
+    void staleApprovalsAndRestoreConflicts()
+    {
+        auto a = folder("stale-a"), b = folder("stale-b");
+        auto original = image(a, "a.png");
+        auto old = hashFile(original);
+        image(b, "a.png", qRgb(80, 80, 80));
+        auto e = compare(discover(a, b).first(), Profile());
+        image(b, "a.png", qRgb(90, 90, 90));
+        QVERIFY_EXCEPTION_THROWN(approve(a, b, { e }), std::runtime_error);
+        QCOMPARE(hashFile(original), old);
+        e = compare(discover(a, b).first(), Profile());
+        auto manifest = approve(a, b, { e });
+        image(a, "a.png", qRgb(100, 100, 100));
+        auto modified = hashFile(original);
+        QVERIFY_EXCEPTION_THROWN(restore(a, manifest), std::runtime_error);
+        QCOMPARE(hashFile(original), modified);
+    }
+    void prepareFailureDoesNotMutateBaseline()
+    {
+        auto a = folder("prepare-a"), b = folder("prepare-b");
+        auto original = image(a, "a.png");
+        image(b, "a.png", qRgb(1, 1, 1));
+        auto old = hashFile(original);
+        auto e = compare(discover(a, b).first(), Profile());
+        auto bad = e;
+        bad.relative = "../escape.png";
+        QVERIFY_EXCEPTION_THROWN(approve(a, b, { e, bad }), std::runtime_error);
+        QCOMPARE(hashFile(original), old);
+    }
+    void preparedRecoveryAndCorruptBackup()
+    {
+        auto a = folder("recover-a"), b = folder("recover-b");
+        auto original = image(a, "a.png");
+        auto before = hashFile(original);
+        image(b, "a.png", qRgb(30, 40, 50));
+        auto e = compare(discover(a, b).first(), Profile());
+        auto manifest = approve(a, b, { e });
+        QFile f(manifest);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        auto o = QJsonDocument::fromJson(f.readAll()).object();
+        f.close();
+        o["state"] = "prepared";
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        f.write(QJsonDocument(o).toJson());
+        f.close();
+        restore(a, manifest);
+        QCOMPARE(hashFile(original), before);
+        e = compare(discover(a, b).first(), Profile());
+        manifest = approve(a, b, { e });
+        QFile backup(QFileInfo(manifest).path() + "/0.original");
+        QVERIFY(backup.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        backup.write("corrupt");
+        backup.close();
+        QVERIFY_EXCEPTION_THROWN(restore(a, manifest), std::runtime_error);
+    }
+    void linkedPathsAndBackupTraversalRefused()
+    {
+#ifdef Q_OS_WIN
+        auto a = folder("link-a"), b = folder("link-b"), outside = folder("link-outside");
+        auto target = image(outside, "protected.png");
+        auto digest = hashFile(target);
+        const auto link = QDir(b).filePath("linked");
+        QCOMPARE(QProcess::execute("cmd.exe",
+                     { "/d", "/c", "mklink", "/J", QDir::toNativeSeparators(link),
+                         QDir::toNativeSeparators(outside) }),
+            0);
+        Entry entry;
+        entry.relative = "protected.png";
+        entry.right = link + "/protected.png";
+        entry.rightHash = digest;
+        entry.status = "Missing baseline";
+        QVERIFY_EXCEPTION_THROWN(approve(a, b, { entry }), std::runtime_error);
+        QCOMPARE(hashFile(target), digest);
+        QVERIFY(!QFileInfo::exists(QDir(a).filePath("protected.png")));
+#endif
+    }
+    void preciseMeanThresholdBoundary()
+    {
+        auto a = folder("precision-a"), b = folder("precision-b");
+        image(a, "a.png");
+        image(b, "a.png", qRgb(0, 0, 1));
+        Profile p;
+        p.allowedPixels = 2048;
+        p.meanError = 1.0 / 3.0;
+        auto entry = discover(a, b).first();
+        QCOMPARE(compare(entry, p).status, QString("Accepted"));
+        p.meanError = std::nextafter(1.0 / 3.0, 0.0);
+        QCOMPARE(compare(entry, p).status, QString("Changed"));
+    }
+    void workbenchNativeWorkflow()
+    {
+        Q_INIT_RESOURCE(diffimg);
+        auto a = folder("gui-a"), b = folder("gui-b");
+        image(a, "same.png");
+        image(b, "same.png");
+        image(a, "changed.png");
+        image(b, "changed.png", qRgb(50, 100, 200));
+        ReviewWorkbench window;
+        window.setFolders(a, b);
+        window.show();
+        window.startComparison();
+        QTRY_VERIFY_WITH_TIMEOUT(!window.busy(), 15000);
+        QCOMPARE(window.results().size(), 2);
+        auto table = window.findChild<QTableWidget*>("comparisonResults");
+        QVERIFY(table);
+        QCOMPARE(table->rowCount(), 2);
+        table->selectRow(0);
+        QTRY_VERIFY_WITH_TIMEOUT(!window.busy(), 15000);
+        auto canvas = window.findChild<ReviewCanvas*>("reviewCanvas");
+        QVERIFY(canvas);
+        QCOMPARE(canvas->imageSize(), QSize(64, 32));
+        canvas->setMode(1);
+        canvas->actual();
+        canvas->setMode(0);
+        canvas->setDivider(25);
+        QCOMPARE(canvas->divider(), 25);
+        canvas->setMaskEditing(true);
+        canvas->actual();
+        QTest::mousePress(canvas, Qt::LeftButton, Qt::NoModifier, QPoint(12, 12));
+        QTest::mouseMove(canvas, QPoint(20, 20));
+        QTest::mouseRelease(canvas, Qt::LeftButton, Qt::NoModifier, QPoint(20, 20));
+        auto exportButton = window.findChild<QPushButton*>("exportReport");
+        QVERIFY(!exportButton->isEnabled());
+        window.startComparison();
+        QTRY_VERIFY_WITH_TIMEOUT(!window.busy(), 15000);
+        QVERIFY(exportButton->isEnabled());
+        table->selectRow(table->rowCount() - 1);
+        QTRY_VERIFY_WITH_TIMEOUT(!window.busy(), 15000);
+        canvas->setMaskEditing(false);
+        canvas->fit();
+        QVERIFY(window.grab().save("workbench-smoke.png"));
+        window.close();
+    }
 };
 QTEST_MAIN(ReviewTests)
 #include "review_tests.moc"

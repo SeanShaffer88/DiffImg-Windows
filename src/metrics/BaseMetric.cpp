@@ -357,6 +357,8 @@ BaseMetric::~BaseMetric()
 {
     if (m_persistSettings) saveSettings();
     clearOutputParams();
+    qDeleteAll(m_inputParams);
+    m_inputParams.clear();
 }
 
 void BaseMetric::init()

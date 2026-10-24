@@ -94,6 +94,12 @@ def main():
             right[at:at+4]=[40,90,180,255]
     png(examples/'baseline.png',400,300,left)
     png(examples/'current.png',400,300,right)
+    for label,pixels in [('baseline',left),('current',right)]:
+        directory=examples/label;directory.mkdir()
+        png(directory/'screen.png',400,300,pixels)
+        png(directory/'unchanged.png',400,300,left)
+    (examples/'default-profile.json').write_text(json.dumps({'schema':1,'name':'Screenshot regression','metric':'PerChannelMetric','allowedPixels':0,'maxError':255,'meanError':255,'parameters':{},'masks':{}},indent=2)+'\n')
+    (package/'Try project review.bat').write_text('@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0diffimg.exe" --project-review "%~dp0examples\\baseline" "%~dp0examples\\current"\r\n',encoding='ascii')
     (package/'Try sample.bat').write_text('@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0diffimg.exe" --portable "%~dp0examples\\baseline.png" "%~dp0examples\\current.png"\r\n',encoding='ascii')
     (package/'Start DiffImg.bat').write_text('@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0diffimg.exe" --portable %*\r\n',encoding='ascii')
     if args.sign_thumbprint:
