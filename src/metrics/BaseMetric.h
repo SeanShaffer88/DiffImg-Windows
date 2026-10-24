@@ -24,6 +24,8 @@
 #include <QtCore/QObject>
 #include <QtCore/QVariant>
 #include <QPixmap>
+#include <QRect>
+#include <QList>
 
 struct ImageProperty {
     ImageProperty(const QString &n, const QString &d, const QString &v) :
@@ -86,6 +88,9 @@ public:
     const QList<ImageProperty> &getProperties() const;
     const QList<MetricParam *> &getOutputParams();
     const QList<MetricParam *> &getInputParams();
+
+    void setIgnoreRegions(const QList<QRect> &regions) { m_ignoreRegions = regions; }
+    void setPersistSettings(bool value) { m_persistSettings = value; }
 
     virtual void checkDifferences(const QString &file1, const QString &file2);
 
@@ -181,6 +186,8 @@ protected:
     QString m_file1;
     QString m_file2;
 
+    QList<QRect> m_ignoreRegions;
+    bool m_persistSettings = true;
     QImage m_image1;
     QImage m_image2;
     QImage m_imageDiff;

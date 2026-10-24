@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tests'))
 from cli_tests import verify,png
+from folder_tests import verify as verify_folders
 
 def modules(pid):
     class Entry(ctypes.Structure):
@@ -46,6 +47,7 @@ def modules(pid):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--package',type=Path,required=True)
+    parser.add_argument('--review-test-exe',type=Path,required=True)
     parser.add_argument('--test-exe',type=Path,required=True)
     parser.add_argument('--qt-test-dll',type=Path,required=True)
     parser.add_argument('--results',type=Path,required=True)
@@ -71,16 +73,20 @@ def main():
         result['amd64_pe_files_verified']=len(binaries)
         # The test harness is supplemental QA material, not a runtime requirement.
         shutil.copy2(args.test_exe,folder/'comparison-tests.exe')
+        shutil.copy2(args.review_test_exe,folder/'review-tests.exe')
         shutil.copy2(args.qt_test_dll,folder/'Qt6Test.dll')
         subprocess.run([str(folder/'comparison-tests.exe'),'-platform','windows','-o','portable-tests.xml,xml'],cwd=folder,env=env,check=True,timeout=30)
         xml=ET.parse(folder/'portable-tests.xml')
         assert not xml.findall('.//Incident[@type="fail"]')
         result['qt_test_passes_including_setup_cleanup']=len(xml.findall('.//Incident[@type="pass"]'))
+        subprocess.run([str(folder/'review-tests.exe'),'-platform','windows','-o','review-tests.xml,xml'],cwd=folder,env=env,check=True,timeout=45)
+        result['review_test_passes_including_setup_cleanup']=len(ET.parse(folder/'review-tests.xml').findall('.//Incident[@type="pass"]'))
         # Reuse the independent PNG/CLI checks under the same minimal environment.
         saved_env=dict(os.environ)
         try:
             os.environ.clear();os.environ.update(env)
             checks=verify(folder/'diffimg-cli.exe')
+            result['folder_cli_checks']=len(verify_folders(folder/'diffimg-cli.exe'))
         finally:
             os.environ.clear();os.environ.update(saved_env)
         result['cli_checks']=len(checks)
@@ -105,9 +111,11 @@ def main():
         unicode_folder=Path(temporary)/'Unicode Ω App'
         shutil.copytree(folder,unicode_folder)
         subprocess.run([str(unicode_folder/'comparison-tests.exe'),'-platform','windows','-o','unicode-tests.xml,xml'],cwd=unicode_folder,env=env,check=True,timeout=30)
+        subprocess.run([str(unicode_folder/'review-tests.exe'),'-platform','windows','-o','unicode-review-tests.xml,xml'],cwd=unicode_folder,env=env,check=True,timeout=45)
         saved_env=dict(os.environ)
         try:
             os.environ.clear();os.environ.update(env)
+            result['unicode_folder_cli_checks']=len(verify_folders(unicode_folder/'diffimg-cli.exe'))
             result['unicode_cli_checks']=len(verify(unicode_folder/'diffimg-cli.exe'))
         finally:
             os.environ.clear();os.environ.update(saved_env)

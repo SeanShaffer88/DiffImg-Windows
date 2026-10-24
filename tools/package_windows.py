@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT=Path(__file__).resolve().parents[1]
-NAME='DiffImg-2.4.0-win-x64'
+NAME='DiffImg-2.5.0-win-x64'
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--crt-root',type=Path,required=True,help='Microsoft.VC143.CRT x64 directory')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--qt-source',type=Path,required=True,help='Verified Qtbase 6.12.0 source tar.xz')
+    parser.add_argument("--sign-thumbprint",help="Optional existing Windows user-store code-signing certificate; private keys are never exported")
     args=parser.parse_args()
     lock=json.loads((ROOT/'dependencies.lock.json').read_text())
     if hashlib.sha256(args.qt_source.read_bytes()).hexdigest()!=lock['qt']['source_sha256']:
@@ -95,6 +96,8 @@ def main():
     png(examples/'current.png',400,300,right)
     (package/'Try sample.bat').write_text('@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0diffimg.exe" --portable "%~dp0examples\\baseline.png" "%~dp0examples\\current.png"\r\n',encoding='ascii')
     (package/'Start DiffImg.bat').write_text('@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0diffimg.exe" --portable %*\r\n',encoding='ascii')
+    if args.sign_thumbprint:
+        subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-File',str(ROOT/'tools/sign_windows.ps1'),'-Folder',str(package),'-Thumbprint',args.sign_thumbprint],check=True)
     manifest={p.relative_to(package).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(package.rglob('*')) if p.is_file()}
     (package/'SHA256.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     print('Portable folder prepared:',package)

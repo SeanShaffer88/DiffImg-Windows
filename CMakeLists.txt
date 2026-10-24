@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(diffimg VERSION 2.4.0 LANGUAGES CXX)
+project(diffimg VERSION 2.5.0 LANGUAGES CXX)
 include(CTest)
 option(DIFFIMG_ASAN "Instrument application and bundled comparison code with MSVC AddressSanitizer" OFF)
 
@@ -19,6 +19,10 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(Qwt REQUIRED)
 add_library(diffimg_core STATIC
+    src/ReviewProject.cpp
+    src/ReviewProject.h
+    src/ReviewWorkbench.cpp
+    src/ReviewWorkbench.h
     # Main sources
     src/AboutDialog.cpp
     src/AboutDialog.h
@@ -123,10 +127,17 @@ if(MSVC)
     target_link_options(diffimg PRIVATE /Brepro)
     target_link_options(diffimg-cli PRIVATE /Brepro)
 endif()
+if(WIN32)
+    target_sources(diffimg PRIVATE res/windows.rc)
+    target_sources(diffimg-cli PRIVATE res/windows.rc)
+endif()
 install(TARGETS diffimg diffimg-cli RUNTIME DESTINATION .)
 if(BUILD_TESTING)
     find_package(Qt6 COMPONENTS Test REQUIRED)
     add_executable(comparison-tests tests/comparison_tests.cpp)
     target_link_libraries(comparison-tests PRIVATE diffimg_core Qt6::Test)
+    add_executable(review-tests tests/review_tests.cpp)
+    target_link_libraries(review-tests PRIVATE diffimg_core Qt6::Test)
+    add_test(NAME project-review COMMAND review-tests -platform windows -o review-results.xml,xml)
     add_test(NAME comparisons COMMAND comparison-tests -platform windows -o comparison-results.xml,xml)
 endif()

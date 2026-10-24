@@ -21,5 +21,6 @@ def main():
     run(['ctest.exe','--test-dir',target,'--output-on-failure'],build,e)
     run([sys.executable,ROOT/'tests/cli_tests.py',target/'diffimg-cli.exe','--output',build/'asan-cli-results.json'],build,e)
     run([sys.executable,ROOT/'tests/robustness_tests.py',target/'diffimg-cli.exe','--output',build/'asan-robustness-results.json'],build,e)
+    run([sys.executable,ROOT/'tests/folder_tests.py',target/'diffimg-cli.exe','--output',build/'asan-folder-results.json'],build,e)
 
 if __name__=='__main__':main()

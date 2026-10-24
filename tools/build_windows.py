@@ -76,6 +76,7 @@ def main():
     run(['ctest.exe','--test-dir',app_build,'--output-on-failure'],build,env)
     run([sys.executable,ROOT/'tests/cli_tests.py',app_build/'diffimg-cli.exe','--output',build/'cli-results.json'],build,env)
     run([sys.executable,ROOT/'tests/robustness_tests.py',app_build/'diffimg-cli.exe','--output',build/'robustness-results.json'],build,env)
+    run([sys.executable,ROOT/'tests/folder_tests.py',app_build/'diffimg-cli.exe','--output',build/'folder-results.json'],build,env)
     run([app_build/'comparison-tests.exe','-platform','windows','guiComparisonSmoke','-o',build/'native-gui-results.xml,xml'],app_build,env)
     manifests={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (app_build/'diffimg.exe',app_build/'diffimg-cli.exe',build/'lib/qwt.dll')}
     (build/'binary-hashes.json').write_text(json.dumps(manifests,indent=2)+'\n')

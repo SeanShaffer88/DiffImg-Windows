@@ -355,7 +355,7 @@ BaseMetric::BaseMetric(QObject *parent) :
 
 BaseMetric::~BaseMetric()
 {
-    saveSettings();
+    if (m_persistSettings) saveSettings();
     clearOutputParams();
 }
 
@@ -367,7 +367,7 @@ void BaseMetric::init()
 
     createInputParams();
     createOutputParams();
-    loadSettings();
+    if (m_persistSettings) loadSettings();
     m_init = true;
 }
 
@@ -1022,6 +1022,19 @@ void BaseMetric::checkDifferences(const QString &file1, const QString &file2)
     // check compatibility
     if (!checkImages()) {
         return;
+    }
+
+    if (!m_ignoreRegions.isEmpty()) {
+        m_image1 = comparisonImage(m_image1);
+        m_image2 = comparisonImage(m_image2);
+        for (const QRect &region : m_ignoreRegions) {
+            const QRect clipped = region.intersected(m_image1.rect());
+            for (int y = clipped.top(); !clipped.isEmpty() && y <= clipped.bottom(); ++y) {
+                auto *a = reinterpret_cast<QRgb *>(m_image1.scanLine(y));
+                auto *b = reinterpret_cast<QRgb *>(m_image2.scanLine(y));
+                for (int x = clipped.left(); x <= clipped.right(); ++x) a[x] = b[x] = qRgb(255,255,255);
+            }
+        }
     }
 
     // compute "standard" properties

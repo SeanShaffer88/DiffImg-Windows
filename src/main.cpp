@@ -19,6 +19,7 @@
  *******************************************************************************/
 
 #include <QApplication>
+#include "ReviewProject.h"
 //#include <QPlastiqueStyle>
 #include <QMessageBox>
 
@@ -200,7 +201,7 @@ void usage()
     out << QObject::tr("") << Qt::endl;
     out << QObject::tr("Following options are available:") << Qt::endl;
     out << QObject::tr(" --list                 : list all metrics with their parameters.") << Qt::endl;
-    out << QObject::tr(" --portable             : use settings file location near the executable (for portable use).") << Qt::endl;
+    out << QObject::tr(" --folder-batch --baseline DIR --current DIR [--profile FILE] [--report NEW.html] : folder CI mode\n --portable             : use settings file location near the executable (for portable use).") << Qt::endl;
     out << QObject::tr("") << Qt::endl;
     out << QObject::tr(" --batch                : batch mode. Differences are computed without GUI and return code is used as result.") << Qt::endl;
     out << QObject::tr(" --output filename      : save difference image to a new file; existing files are never overwritten.") << Qt::endl;
@@ -379,6 +380,8 @@ int main(int argc, char *argv[])
 #if defined(Q_WS_WIN) || defined(Q_WS_MAC)
     //QApplication::setStyle(new QPlastiqueStyle);
 #endif
+
+    if (app.arguments().contains("--folder-batch")) return Review::batch(app.arguments());
 
     // check for special argument
     bool forceResetConfig = false;

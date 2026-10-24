@@ -19,6 +19,8 @@
  *******************************************************************************/
 
 #include "DiffImgWindow.h"
+#include "ReviewWorkbench.h"
+#include <QToolBar>
 #include "FilesDialog.h"
 #include "AppSettings.h"
 #include "LogHandler.h"
@@ -117,6 +119,17 @@ DiffImgWindow::DiffImgWindow(QWidget *parent)
     dockWidgetNavigator->setMinimumWidth(260);
     dockWidgetProperties->setMinimumWidth(350);
     dockWidgetNavigator->setMinimumHeight(300);
+    auto reviewAction = new QAction(tr("Project review…"), this);
+    reviewAction->setObjectName("actionProjectReview");
+    reviewAction->setShortcut(QKeySequence("Ctrl+Shift+R"));
+    reviewAction->setToolTip(tr("Compare screenshot folders, save profiles, mask regions, export reports and approve baselines"));
+    auto reviewToolbar = addToolBar(tr("Project review"));
+    reviewToolbar->addAction(reviewAction);
+    connect(reviewAction, &QAction::triggered, this, [this] {
+        auto workbench = new ReviewWorkbench(this);
+        workbench->setAttribute(Qt::WA_DeleteOnClose);
+        workbench->show();
+    });
     updateUi();
     loadSettings();
 }
