@@ -94,12 +94,42 @@ def launch(request, package_copy, tmp_path):
 
     yield _launch
 
-    # Failure screenshot, then graceful exit with a force-kill fallback.
+    # Failure screenshot + UIA tree dump, then graceful exit with a
+    # force-kill fallback. The tree dump is what turns the next
+    # locator failure from a guess into a read.
     failed = getattr(getattr(request.node, "rep_call", None), "failed", False)
     for app in launched:
         if failed:
             try:
                 app.page.screenshot(f"FAIL_{request.node.name}")
+            except Exception:
+                pass
+            try:
+                import contextlib
+                import io
+
+                from pywinauto import Desktop
+
+                os.makedirs(config.ARTIFACT_DIR, exist_ok=True)
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    try:
+                        app.window.print_control_identifiers()
+                    except Exception as exc:
+                        print(f"<main window tree failed: {exc}>")
+                    pid = app.window.process_id()
+                    for top in Desktop(backend="uia").windows():
+                        try:
+                            if top.process_id() == pid and top.handle != app.window.handle:
+                                print(f"\n===== top-level: {top.window_text()!r} =====")
+                                top.print_control_identifiers()
+                        except Exception:
+                            pass
+                path = os.path.join(
+                    config.ARTIFACT_DIR, f"FAIL_{request.node.name}_uiatree.txt"
+                )
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(buf.getvalue())
             except Exception:
                 pass
         try:

@@ -16,8 +16,11 @@ You need a built portable package — either the `DiffImg-<version>-win-x64` fol
 ```powershell
 pip install -r e2e/requirements.txt
 $env:DIFFIMG_APP_DIR = "C:\path\to\DiffImg-2.6.0-win-x64"
-python -m pytest e2e -v
+cd e2e
+python -m pytest . -v
 ```
+
+Run from inside `e2e/` so the HTML report lands in `e2e/artifacts/` next to the screenshots (a repo-root invocation puts it in a different `artifacts/` folder).
 
 Screenshots and an HTML report land in `e2e/artifacts/` (failure screenshots are automatic). Do not commit or publish artifacts — they can show whatever was on screen.
 

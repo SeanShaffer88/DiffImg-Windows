@@ -48,11 +48,12 @@ jobs:
 
       - name: Run desktop E2E smoke tests
         shell: pwsh
+        working-directory: e2e
         run: |
-          $pkg = (Get-ChildItem staging -Directory | Where-Object Name -Like 'DiffImg-*-win-x64' | Select-Object -First 1).FullName
+          $pkg = (Get-ChildItem ../staging -Directory | Where-Object Name -Like 'DiffImg-*-win-x64' | Select-Object -First 1).FullName
           if (-not $pkg) { throw 'Packaged DiffImg folder not found under staging/' }
           $env:DIFFIMG_APP_DIR = $pkg
-          python -m pytest e2e -v
+          python -m pytest . -v
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - uses: actions/upload-artifact@v4
